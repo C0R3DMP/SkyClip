@@ -181,6 +181,20 @@ class Application:
                     self.config.data["websocket_url"] = Config.convert_to_websocket_url(
                         self.config.data["server_url"], WEBSOCKET_ENDPOINT
                     )
+
+                # Perform ECDH handshake for Perfect Forward Secrecy (PFS)
+                try:
+                    session_key = self.request_manager.perform_ecdh_handshake()
+                    self.cipher_manager.set_session_key(session_key)
+                    logging.info("ECDH handshake successful, session key set")
+                except RuntimeError as e:
+                    logging.error(f"ECDH handshake failed: {e}")
+                    CustomDialog(
+                        f"Key exchange failed: {e}",
+                        msg_type="error",
+                    ).mainloop()
+                    continue
+
                 ws_conn_successful, msg = self._get_ws_manager().connect()
                 if ws_conn_successful:
                     self._get_ws_manager().is_login_phase = False
@@ -273,6 +287,8 @@ class Application:
         try:
             self._get_ws_manager().disconnect()
             self.request_manager.logout()
+            # Clear ECDH session key on logout
+            self.cipher_manager.clear_session_key()
             # Delete password from keyring on logout
             if self.config.data.get("username"):
                 self.keyring_manager.delete_password(self.config.data["username"])

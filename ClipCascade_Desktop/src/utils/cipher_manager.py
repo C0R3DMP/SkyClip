@@ -18,11 +18,24 @@ class CipherManager:
 
         # encryption
         self.mode = AES.MODE_GCM
+        self.session_key = None  # Session key for in-transit (PFS)
 
     def needs_rehash(self) -> bool:
         """Check if stored hash is old PBKDF2 (needs upgrade to Argon2id)"""
         stored_algo = self.config.data.get("algorithm", "pbkdf2")
         return stored_algo == "pbkdf2" or stored_algo is None
+
+    def set_session_key(self, session_key: bytes) -> None:
+        """Set the session key for in-transit encryption (PFS)."""
+        if not isinstance(session_key, bytes) or len(session_key) != 32:
+            raise ValueError("Session key must be 32 bytes")
+        self.session_key = session_key
+        logging.info("Session key set for ECDH PFS")
+
+    def clear_session_key(self) -> None:
+        """Clear the session key on logout."""
+        self.session_key = None
+        logging.info("Session key cleared")
 
     def _argon2_raw(self, password: str, salt: bytes) -> bytes:
         """Derive encryption key using Argon2id (raw bytes output)"""
@@ -96,6 +109,30 @@ class CipherManager:
     def decrypt(self, nonce: bytes, ciphertext: bytes, tag: bytes) -> str:
         key = self.config.data["hashed_password"]
         cipher = AES.new(key, self.mode, nonce=nonce)
+        return cipher.decrypt_and_verify(ciphertext, tag).decode()
+
+    def encrypt_transit(self, plaintext: str) -> dict:
+        """Encrypt in-transit using ephemeral session_key (ECDH-derived).
+
+        Raises RuntimeError if session_key not set (no fallback to master_key).
+        """
+        if self.session_key is None:
+            raise RuntimeError("Session key not set; cannot encrypt in-transit")
+
+        plaintext_bytes = plaintext.encode("utf-8")
+        cipher = AES.new(self.session_key, self.mode)
+        ciphertext, tag = cipher.encrypt_and_digest(plaintext_bytes)
+        return {"nonce": cipher.nonce, "ciphertext": ciphertext, "tag": tag}
+
+    def decrypt_transit(self, nonce: bytes, ciphertext: bytes, tag: bytes) -> str:
+        """Decrypt in-transit using ephemeral session_key (ECDH-derived).
+
+        Raises RuntimeError if session_key not set (no fallback to master_key).
+        """
+        if self.session_key is None:
+            raise RuntimeError("Session key not set; cannot decrypt in-transit")
+
+        cipher = AES.new(self.session_key, self.mode, nonce=nonce)
         return cipher.decrypt_and_verify(ciphertext, tag).decode()
 
     @staticmethod

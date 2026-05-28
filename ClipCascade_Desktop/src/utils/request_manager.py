@@ -1,10 +1,17 @@
 import json
 import logging
 import requests
+import ctypes
 from core.constants import *
 from core.config import Config
 from bs4 import BeautifulSoup
 from utils.ssl_helper import requests_verify_arg
+
+
+def _secure_clear(data: bytes) -> None:
+    """Overwrite bytes in memory before deletion (prevent memory dump recovery)."""
+    if data:
+        ctypes.memset(id(data), 0, len(data))
 
 
 class RequestManager:
@@ -172,6 +179,55 @@ class RequestManager:
             logging.error(f"Error fetching CSRF token: {e}")
             return ""
 
+    def perform_ecdh_handshake(self) -> bytes:
+        """
+        Perform ECDH key exchange with server after successful login.
+
+        Returns:
+            session_key: 32-byte encryption key for in-transit communication
+
+        Raises:
+            RuntimeError: If handshake fails (no fallback)
+        """
+        try:
+            from utils.ecdh_key_exchange import ECDHKeyExchange
+
+            # Step 1: Generate ephemeral keypair
+            client_private_pem, client_public_pem = ECDHKeyExchange.generate_keypair()
+            logging.info("ECDH: Generated client keypair")
+
+            # Step 2: Send client public key to server, receive server public key
+            response = RequestManager.post(
+                url=self.config.data["server_url"] + "/api/ecdh/handshake",
+                json_data={"public_key": client_public_pem.decode("utf-8")},
+                headers={
+                    "Cookie": RequestManager.format_cookie(self.config.data["cookie"]),
+                },
+                verify=self._verify(),
+            )
+
+            if response.status_code != 200:
+                raise RuntimeError(
+                    f"ECDH handshake failed: {response.status_code} {response.text}"
+                )
+
+            server_public_pem = response.json()["public_key"].encode("utf-8")
+            logging.info("ECDH: Received server public key")
+
+            # Step 3: Perform key agreement and derive session key
+            session_key = ECDHKeyExchange.perform_key_exchange(
+                client_private_pem, server_public_pem
+            )
+            logging.info("ECDH: Session key derived")
+
+            # Step 4: Secure memory clearing for ephemeral private key
+            _secure_clear(client_private_pem)
+            del client_private_pem, client_public_pem
+
+            return session_key
+        except Exception as e:
+            raise RuntimeError(f"ECDH handshake failed: {e}")
+
     @staticmethod
     def get(url: str, headers: dict = None, verify=True) -> requests.Response:
         """
@@ -187,14 +243,18 @@ class RequestManager:
 
     @staticmethod
     def post(
-        url: str, data: dict, headers: dict = None, verify=True
+        url: str, data=None, headers: dict = None, verify=True, json_data: dict = None
     ) -> requests.Response:
         """
         A generic POST mapper for handling POST requests.
+        Supports both form data (data) and JSON (json_data).
         """
         try:
-            response = requests.post(url, data=data, headers=headers, verify=verify)
-            response.raise_for_status()  # Will raise an HTTPError if the HTTP request returned an unsuccessful status code
+            if json_data is not None:
+                response = requests.post(url, json=json_data, headers=headers, verify=verify)
+            else:
+                response = requests.post(url, data=data, headers=headers, verify=verify)
+            response.raise_for_status()
             return response
         except Exception as e:
             logging.error(f"Error during POST request to {url}: {e}")

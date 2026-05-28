@@ -110,9 +110,16 @@ class STOMPManager(WSInterface):
             if self.is_connected:
                 if self.clipboard_manager.has_clipboard_changed(payload):
                     if self.config.data["cipher_enabled"]:
-                        payload = CipherManager.encode_to_json_string(
-                            **self.cipher_manager.encrypt(payload)
-                        )
+                        # Use in-transit encryption (ECDH session key) if available
+                        if self.cipher_manager.session_key is not None:
+                            payload = CipherManager.encode_to_json_string(
+                                **self.cipher_manager.encrypt_transit(payload)
+                            )
+                        else:
+                            # Fall back to at-rest encryption (master key)
+                            payload = CipherManager.encode_to_json_string(
+                                **self.cipher_manager.encrypt(payload)
+                            )
                     body = json.dumps({"payload": payload, "type": payload_type})
                     self.client.send(destination=SEND_DESTINATION, body=body)
         except Exception as e:
@@ -125,9 +132,13 @@ class STOMPManager(WSInterface):
                 payload = body["payload"]
                 payload_type = body.get("type", "text")
                 if self.config.data["cipher_enabled"]:
-                    payload = self.cipher_manager.decrypt(
-                        **CipherManager.decode_from_json_string(payload)
-                    )
+                    decrypted_dict = CipherManager.decode_from_json_string(payload)
+                    # Use in-transit decryption (ECDH session key) if available
+                    if self.cipher_manager.session_key is not None:
+                        payload = self.cipher_manager.decrypt_transit(**decrypted_dict)
+                    else:
+                        # Fall back to at-rest decryption (master key)
+                        payload = self.cipher_manager.decrypt(**decrypted_dict)
 
                 if self.clipboard_manager.has_clipboard_changed(payload):
                     self.clipboard_manager.base64_to_clipboard(

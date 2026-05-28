@@ -12,6 +12,7 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
+import org.springframework.web.socket.server.support.HttpSessionHandshakeInterceptor;
 
 import com.acme.clipcascade.constants.ServerConstants;
 
@@ -71,6 +72,7 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
         // Clients will connect to this endpoint for WebSocket communication.
         registry.addEndpoint("/clipsocket")
+                .addInterceptors(new HttpSessionHandshakeInterceptor())  // Bridge HTTP session ID to WebSocket
                 .setAllowedOrigins(clipCascadeProperties.getAllowedOrigins());
     }
 

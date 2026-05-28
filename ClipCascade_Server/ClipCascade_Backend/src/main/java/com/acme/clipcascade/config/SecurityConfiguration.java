@@ -71,6 +71,7 @@ public class SecurityConfiguration {
 								"/ping",
 								"/assets/**")
 						.permitAll()
+						.requestMatchers("/api/ecdh/**").authenticated()  // ECDH post-login only
 						.anyRequest().authenticated())
 				.formLogin(form -> form
 						.loginPage("/login")
