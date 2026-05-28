@@ -9,6 +9,21 @@ version: '3.8'
 # # Health check endpoint is available at http://localhost:8080/health
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clipcascade-postgres
+    environment:
+      POSTGRES_DB: clipcascade
+      POSTGRES_USER: ${CC_DB_USER:?CC_DB_USER must be set}
+      POSTGRES_PASSWORD: ${CC_DB_PASSWORD:?CC_DB_PASSWORD must be set}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CC_DB_USER:?CC_DB_USER must be set}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   clipcascade:
     image: sathvikrao/clipcascade:0.7.0
     # # 🚀 If you want to always use the latest version of ClipCascade Server, uncomment the line below and comment out the line above.
@@ -24,6 +39,10 @@ services:
 
     # # 🔄 Automatically restart the container if it stops unexpectedly.
     restart: always
+
+    depends_on:
+      postgres:
+        condition: service_healthy
 
     volumes:
       # # 📂 Bind mount the database folder for portability
@@ -150,31 +169,34 @@ services:
       # # ------------------------------------------------- # #
       # #               Database Settings                   # #
       # # ------------------------------------------------- # #
-      # # ⚙️ Configures the database username. Default uses H2 file mode.
+      # # ⚙️ Configures the database username. Required for PostgreSQL mode.
       # # Once set, you must use the same username whenever you migrate the database.
-      # # Default: clipcascade
-      # - CC_SERVER_DB_USERNAME=clipcascade
+      # # REQUIRED for PostgreSQL: must match POSTGRES_USER
+      - CC_SERVER_DB_USERNAME=${CC_DB_USER:?CC_DB_USER must be set}
 
-      # # ⚙️ Sets a password for encrypting the user database. Default uses H2 file mode.
+      # # ⚙️ Sets a password for the database. Required for PostgreSQL mode.
       # # Replace `<file password>` and `<user password>` with secure values.
       # # Once set, you must use the same password whenever you migrate the database.
-      # # Default password: `QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky`
-      # - CC_SERVER_DB_PASSWORD=QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky
+      # # REQUIRED for PostgreSQL: must match POSTGRES_PASSWORD
+      - CC_SERVER_DB_PASSWORD=${CC_DB_PASSWORD:?CC_DB_PASSWORD must be set}
 
       # # ⚙️ Configures the database URL. Default uses H2 file mode.
-      # # Example for PostgreSQL: jdbc:postgresql://localhost:5432/clipcascade
-      # # Default: jdbc:h2:file:./database/clipcascade;CIPHER=AES;MODE=PostgreSQL
-      # - CC_SERVER_DB_URL=jdbc:h2:file:./database/clipcascade;CIPHER=AES;MODE=PostgreSQL
+      # # For PostgreSQL: jdbc:postgresql://postgres:5432/clipcascade
+      # # For H2: jdbc:h2:file:./database/clipcascade;CIPHER=AES;MODE=PostgreSQL
+      - CC_SERVER_DB_URL=${CC_SERVER_DB_URL:?CC_SERVER_DB_URL must be set}
 
       # # ⚙️ Configures the database driver. Default uses H2 file mode.
       # # Example for PostgreSQL: org.postgresql.Driverset
-      # # Default: org.h2.Driver
-      # - CC_SERVER_DB_DRIVER=org.h2.Driver
+      # # For PostgreSQL: org.postgresql.Driver
+      - CC_SERVER_DB_DRIVER=${CC_SERVER_DB_DRIVER:?CC_SERVER_DB_DRIVER must be set}
 
       # # ⚙️ Configures the database dialect. Default uses H2 file mode.
       # # Example for PostgreSQL: org.hibernate.dialect.PostgreSQLDialect
-      # # Default: org.hibernate.dialect.H2Dialect
-      # - CC_SERVER_DB_HIBERNATE_DIALECT=org.hibernate.dialect.H2Dialect
+      # # For PostgreSQL: org.hibernate.dialect.PostgreSQLDialect
+      - CC_SERVER_DB_HIBERNATE_DIALECT=${CC_SERVER_DB_HIBERNATE_DIALECT:?CC_SERVER_DB_HIBERNATE_DIALECT must be set}
+
+      # # Spring profile for configuration selection
+      - SPRING_PROFILES_ACTIVE=postgres
 
       # # ------------------------------------------------- # #
       # #                   Log Settings                    # #
@@ -225,3 +247,6 @@ services:
       # # ⚙️ Enables or disables the donations feature (internal feature).
       # # Default: false
       # - CC_DONATIONS_ENABLED=false
+
+volumes:
+  postgres-data:
