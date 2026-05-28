@@ -15,26 +15,30 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import com.acme.clipcascade.service.BruteForceProtectionService;
 import com.acme.clipcascade.service.FacadeUserService;
+import com.acme.clipcascade.service.LoginAttemptService;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
 
-	private final UserDetailsService userDetailsService; // <- Spring Security UserDetailsService
+	private final UserDetailsService userDetailsService;
 	private final BCryptPasswordEncoder bCryptPasswordEncoder;
 	private final BruteForceProtectionService bruteForceProtectionService;
 	private final FacadeUserService facadeUserService;
+	private final LoginAttemptService loginAttemptService;
 
 	SecurityConfiguration(
 			UserDetailsService userDetailsService,
 			BCryptPasswordEncoder bCryptPasswordEncoder,
 			BruteForceProtectionService bruteForceProtectionService,
-			FacadeUserService facadeUserService) {
+			FacadeUserService facadeUserService,
+			LoginAttemptService loginAttemptService) {
 
 		this.userDetailsService = userDetailsService;
 		this.bCryptPasswordEncoder = bCryptPasswordEncoder;
 		this.bruteForceProtectionService = bruteForceProtectionService;
 		this.facadeUserService = facadeUserService;
+		this.loginAttemptService = loginAttemptService;
 	}
 
 	// SessionRegistry bean to store session information
@@ -51,6 +55,9 @@ public class SecurityConfiguration {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		LoginAttemptFilter loginAttemptFilter = new LoginAttemptFilter(loginAttemptService);
+		loginAttemptFilter.setFilterProcessesUrl("/login");
+
 		return http
 				.authorizeHttpRequests((authorize) -> authorize
 						.requestMatchers(
@@ -63,23 +70,24 @@ public class SecurityConfiguration {
 								"/health",
 								"/ping",
 								"/assets/**")
-						.permitAll() // <- Allow access to these URLs without authentication
-						.anyRequest().authenticated()) // All other requests require authentication
+						.permitAll()
+						.anyRequest().authenticated())
 				.formLogin(form -> form
-						.loginPage("/login") // <- custom login URL
-						.failureUrl("/login?error") // <- Where to go if login fails
+						.loginPage("/login")
+						.failureUrl("/login?error")
 						.successHandler(
 								new CustomAuthenticationSuccessHandler(
 										bruteForceProtectionService,
-										facadeUserService))) // <- Custom authentication success handler
+										facadeUserService)))
+				.addFilter(loginAttemptFilter)
 				.logout(logout -> logout
-						.logoutUrl("/logout") // The URL to submit a logout request
-						.logoutSuccessUrl("/login?logout")) // Where to go after successful logout
+						.logoutUrl("/logout")
+						.logoutSuccessUrl("/login?logout"))
 				.sessionManagement(session -> session
-						.sessionCreationPolicy(SessionCreationPolicy.ALWAYS) // Always create a new session
-						.maximumSessions(-1) // Allow unlimited sessions
-						.sessionRegistry(sessionRegistry()) // Use the session registry
-						.expiredSessionStrategy(new CustomExpiredSession())) // Custom expired session strategy
+						.sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+						.maximumSessions(-1)
+						.sessionRegistry(sessionRegistry())
+						.expiredSessionStrategy(new CustomExpiredSession()))
 				.build();
 	}
 

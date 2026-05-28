@@ -1,6 +1,7 @@
 import base64
 import json
 import hashlib
+import logging
 
 from Crypto.Cipher import AES
 from core.constants import *
@@ -18,16 +19,72 @@ class CipherManager:
         # encryption
         self.mode = AES.MODE_GCM
 
-    def hash_password(self, password: str) -> bytes:
+    def needs_rehash(self) -> bool:
+        """Check if stored hash is old PBKDF2 (needs upgrade to Argon2id)"""
+        stored_algo = self.config.data.get("algorithm", "pbkdf2")
+        return stored_algo == "pbkdf2" or stored_algo is None
+
+    def _argon2_raw(self, password: str, salt: bytes) -> bytes:
+        """Derive encryption key using Argon2id (raw bytes output)"""
+        try:
+            from argon2.low_level import hash_secret_raw, Type
+            return hash_secret_raw(
+                password.encode(),
+                salt,
+                time_cost=3,
+                memory_cost=65540,
+                parallelism=4,
+                hash_len=32,
+                type=Type.ID
+            )
+        except ImportError:
+            # SECURITY: argon2-cffi missing - visible warning required
+            warning_msg = (
+                "SECURITY WARNING: argon2-cffi library not installed. "
+                "Falling back to weaker PBKDF2 hashing. "
+                "Please install: pip install argon2-cffi==23.1.0"
+            )
+            logging.warning(warning_msg)
+            # Show user-visible notification
+            try:
+                from utils.notification_manager import NotificationManager
+                notif_mgr = NotificationManager(self.config)
+                notif_mgr.notify(
+                    title="⚠️ Security Warning: Weak Password Hashing",
+                    message="argon2-cffi not installed. Using weak PBKDF2 fallback. Install argon2-cffi for security."
+                )
+            except Exception as e:
+                logging.error(f"Failed to show security notification: {e}")
+            return self._pbkdf2_hash(password)
+
+    def _pbkdf2_hash(self, password: str) -> bytes:
+        """Legacy PBKDF2-HMAC-SHA256 (exact original salt formula for backward compatibility)"""
         return hashlib.pbkdf2_hmac(
             hash_name=self.hash_name,
             password=password.encode(),
             salt=(
                 self.config.data["username"] + password + self.config.data["salt"]
             ).encode("utf-8"),
-            iterations=self.config.data["hash_rounds"],
+            iterations=self.config.data.get("hash_rounds", 664937),
             dklen=self.dklen,
         )
+
+    def hash_password(self, password: str) -> bytes:
+        """
+        Derive encryption key from password.
+        Uses Argon2id for new installations, auto-upgrades from PBKDF2.
+        Returns the 32-byte AES encryption key (bytes).
+        """
+        # Use Argon2id for new hashes
+        if not self.needs_rehash():
+            # Already Argon2id - use modern hashing
+            full_salt = (
+                self.config.data["username"] + self.config.data["salt"]
+            ).encode("utf-8")
+            return self._argon2_raw(password, full_salt)
+        else:
+            # Old PBKDF2 config - use exact original salt formula for compatibility
+            return self._pbkdf2_hash(password)
 
     def encrypt(self, plaintext: str) -> dict:
         key = self.config.data["hashed_password"]

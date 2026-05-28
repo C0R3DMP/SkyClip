@@ -6,6 +6,7 @@ from core.constants import *
 
 from core.config import Config
 from utils.request_manager import RequestManager
+from utils.keyring_manager import KeyringManager
 from utils.cipher_manager import CipherManager
 from stomp_ws.stomp_manager import STOMPManager
 from p2p.p2p_manager import P2PManager
@@ -60,6 +61,7 @@ class Application:
             self.stomp_manager = STOMPManager(self.config)
             self.p2p_manager = P2PManager(self.config)
             self.cipher_manager = CipherManager(self.config)
+            self.keyring_manager = KeyringManager(self.config)
         except Exception as e:
             CustomDialog(
                 f"An error occurred during application initialization: {e}",
@@ -186,6 +188,23 @@ class Application:
                         self.config.data["hashed_password"] = (
                             self.cipher_manager.hash_password(raw_password)
                         )
+                        # Store password securely in keyring if save_password enabled
+                        if self.config.data.get("save_password"):
+                            success = self.keyring_manager.store_password(
+                                self.config.data["username"],
+                                raw_password
+                            )
+                            if not success:
+                                logging.warning("Password not stored in keyring, falling back to plaintext")
+                        # Check if upgrade from PBKDF2 to Argon2id is needed
+                        if self.cipher_manager.needs_rehash():
+                            logging.info("Upgrading password hash from PBKDF2 to Argon2id...")
+                            self.config.data["algorithm"] = "argon2id"
+                            CustomDialog(
+                                "Password hash upgraded to Argon2id for improved security.",
+                                msg_type="info",
+                                timeout=3000,
+                            ).mainloop()
                     if not self.config.data["save_password"]:
                         self.config.data["password"] = ""
                     if display_login_success_dialog:
@@ -254,6 +273,9 @@ class Application:
         try:
             self._get_ws_manager().disconnect()
             self.request_manager.logout()
+            # Delete password from keyring on logout
+            if self.config.data.get("username"):
+                self.keyring_manager.delete_password(self.config.data["username"])
             self.config.data["hashed_password"] = None
             self.config.data["cookie"] = None
             self.config.data["maxsize"] = None

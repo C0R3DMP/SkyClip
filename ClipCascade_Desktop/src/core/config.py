@@ -14,6 +14,8 @@ class Config:
             "websocket_url": "",
             "username": "",
             "hashed_password": None,
+            "algorithm": "argon2id",
+            "keyring_enabled": True,
             "cookie": None,
             "maxsize": None,
             "hash_rounds": 664937,

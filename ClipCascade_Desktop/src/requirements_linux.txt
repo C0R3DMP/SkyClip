@@ -1,5 +1,7 @@
 Pillow==10.4.0
 plyer==2.1.0
+argon2-cffi==23.1.0
+keyring==25.1.0
 pycryptodome==3.20.0
 pystray==0.19.5
 Requests==2.32.3
