@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-28 / Updated 2026-05-29  
 **Environment:** Proxmox LXC, Docker  
-**Image:** `skyclip:latest` (custom build from SkyClip/ClipCascade_Server/ClipCascade_Backend)  
+**Image:** `skyclip:latest` (custom build from SkyClip/server/backend)  
 **Database:** PostgreSQL 16-alpine  
 **Server Port:** 8090 (mapped to container 8080)
 

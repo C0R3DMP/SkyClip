@@ -29,11 +29,11 @@
 - Security warnings: visible notifications if argon2-cffi library missing (WARNING log + user popup)
 
 **Files Changed:**
-- `ClipCascade_Desktop/src/utils/cipher_manager.py` — Core Argon2id implementation
-- `ClipCascade_Desktop/src/core/config.py` — Added "algorithm" field
-- `ClipCascade_Desktop/src/core/application.py` — Auto-upgrade on login
-- `ClipCascade_Desktop/src/requirements_*.txt` (3 files) — Added argon2-cffi dependency
-- `ClipCascade_Desktop/tests/test_cipher_manager.py` — 14 unit tests (all passing)
+- `desktop/src/utils/cipher_manager.py` — Core Argon2id implementation
+- `desktop/src/core/config.py` — Added "algorithm" field
+- `desktop/src/core/application.py` — Auto-upgrade on login
+- `desktop/src/requirements_*.txt` (3 files) — Added argon2-cffi dependency
+- `desktop/tests/test_cipher_manager.py` — 14 unit tests (all passing)
 - `SECURITY.md` — Comprehensive documentation
 
 **Verification:**
@@ -114,11 +114,11 @@
 - Integration with Task 1: password stored on login, deleted on logout
 
 **Files Changed:**
-- `ClipCascade_Desktop/src/utils/keyring_manager.py` (NEW) — Unified keyring interface
-- `ClipCascade_Desktop/src/core/config.py` — Added "keyring_enabled" flag
-- `ClipCascade_Desktop/src/core/application.py` — Call keyring on login/logout
-- `ClipCascade_Desktop/src/requirements_*.txt` (3 files) — Added keyring==25.1.0
-- `ClipCascade_Desktop/tests/test_keyring_manager.py` (NEW) — 12 unit tests (all passing)
+- `desktop/src/utils/keyring_manager.py` (NEW) — Unified keyring interface
+- `desktop/src/core/config.py` — Added "keyring_enabled" flag
+- `desktop/src/core/application.py` — Call keyring on login/logout
+- `desktop/src/requirements_*.txt` (3 files) — Added keyring==25.1.0
+- `desktop/tests/test_keyring_manager.py` (NEW) — 12 unit tests (all passing)
 
 **Verification:**
 - ✅ 12 unit tests passing (store, retrieve, delete, empty validation, disabled flag, unavailable fallback, roundtrip)
