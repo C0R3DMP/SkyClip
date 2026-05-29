@@ -21,14 +21,11 @@ git clone https://github.com/C0R3DMP/SkyClip.git
 cd SkyClip
 
 # Set required environment variables
-export POSTGRES_PASSWORD=your_secure_password
-export SPRING_SECURITY_USER_NAME=admin
-export SPRING_SECURITY_USER_PASSWORD=your_admin_password
-export MAX_CLIPBOARD_SIZE=1048576
-export MAX_MESSAGE_SIZE=1048576
-export MAX_CONNECTIONS=10
-export STOMP_ENDPOINT=wss://your-domain/clipsocket
-export CIPHER_SECRET_KEY=your_32_byte_secret_key
+export CC_DB_USER=clipcascade
+export CC_DB_PASSWORD=your_secure_db_password
+export CC_SERVER_DB_URL=jdbc:postgresql://postgres:5432/clipcascade
+export CC_SERVER_DB_DRIVER=org.postgresql.Driver
+export CC_SERVER_DB_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
 
 docker compose up -d
 ```
@@ -53,10 +50,10 @@ See [POSTGRESQL_SETUP.md](ClipCascade_Server/POSTGRESQL_SETUP.md) for full Postg
 
 ## Architecture
 
-- **Desktop client:** Python with PyQt/PySide, Argon2id key derivation, ECDH handshake, AES-256-GCM encryption
+- **Desktop client:** Python with tkinter, Argon2id key derivation, ECDH handshake, AES-256-GCM encryption
 - **Server:** Spring Boot + WebSocket (STOMP), Spring Security, Flyway, PostgreSQL
 - **Mobile:** Android client
 
 ## License
 
-MIT
+GPL-3.0
