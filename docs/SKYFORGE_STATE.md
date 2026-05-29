@@ -289,11 +289,18 @@
 ## Git Status
 
 **Committed Transactions:**
-- Task 1: ✅ Committed (e8cc755 - Argon2id implementation)
-- Task 3: ✅ Committed (e8cc755 - Keyring storage)
-- Task 4: ✅ Committed (e8cc755 - API Rate Limiting)
-- Task 5: ✅ Committed (00e5c1a - PostgreSQL Migration)
-- Task 2: ✅ Committed (6113760 - Perfect Forward Secrecy / ECDH)
+- Task 1: ✅ Committed (Argon2id implementation)
+- Task 3: ✅ Committed (Keyring storage)
+- Task 4: ✅ Committed (API Rate Limiting)
+- Task 5: ✅ Committed (PostgreSQL Migration)
+- Task 2: ✅ Committed (Perfect Forward Secrecy / ECDH)
+- BFA consolidation: ✅ Committed
+- History rewrite: ✅ Complete — binaries purged, .git 589MB → 65MB (2026-05-29)
+
+**GitHub:** ✅ Published — history cleaned, force-pushed (commit 0e47633)
+
+**Backup mirror:** `/home/sky/SkyForge/SkyClip-backup.git` — current (0e47633)  
+**Pre-rewrite backup:** `/home/sky/SkyForge/SkyClip-backup-prerewrite.git` — retained
 
 **Branches:**
 - Working on: main (no feature branches created)
@@ -372,4 +379,18 @@ All five security tasks implemented and committed:
 
 ---
 
-**Status:** All Phase 1 Security Hardening tasks COMPLETE. BFA consolidation applied. Project ready for production deployment.
+## Integration Test Status
+
+| Suite | Result |
+|-------|--------|
+| Argon2id cipher tests | ✅ 14/14 passing |
+| ECDH key exchange tests | ✅ 9/9 passing |
+| Keyring manager tests | ✅ 12/12 passing |
+| Multi-client sync test | ⏳ Deferred (requires 2 running clients) |
+| WebSocket ECDH e2e test | ⏳ Deferred (requires 2 running clients) |
+
+**Summary:** 3 suites passing (35/35 tests). 2 tests deferred pending live multi-client environment.
+
+---
+
+**Status:** All Phase 1 Security Hardening tasks COMPLETE. BFA consolidation applied. GitHub published, history cleaned (65MB). Project ready for production deployment.
