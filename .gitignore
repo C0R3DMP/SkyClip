@@ -2,3 +2,6 @@ private/
 screenshots/
 .DS_Store
 .vscode/
+__pycache__/
+*.pyc
+.pytest_cache/
