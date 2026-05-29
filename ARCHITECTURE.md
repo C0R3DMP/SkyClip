@@ -1,6 +1,6 @@
 # SkyClip Architecture Documentation
 
-**Project**: SkyClip (ClipCascade - Self-Hosted Clipboard Synchronization)  
+**Project**: SkyClip — Self-Hosted Clipboard Synchronization  
 **Architecture Version**: 1.0  
 **Analysis Date**: 2026-05-28  
 
@@ -144,7 +144,7 @@ DEVICE B (RECEIVER)
 
 ## 3. Core Components & File Structure
 
-### **ClipCascade_Desktop/** (Python 3.12)
+### **desktop/** (Python 3.12)
 ```
 src/
 ├── main.py                          # Entry point
@@ -205,11 +205,11 @@ src/
 
 ---
 
-### **ClipCascade_Server/** (Java 21 + Spring Boot 3.x)
+### **server/** (Java 21 + Spring Boot 3.x)
 ```
-ClipCascade_Backend/src/main/java/com/acme/clipcascade/
+backend/src/main/java/com/acme/clipcascade/
 │
-├── ClipCascadeApplication.java      # Main Spring Boot app
+├── SkyClipApplication.java      # Main Spring Boot app
 │
 ├── config/
 │   ├── SecurityConfiguration.java   # Spring Security setup
@@ -219,7 +219,7 @@ ClipCascade_Backend/src/main/java/com/acme/clipcascade/
 │   ├── JacksonConfig.java           # JSON serialization
 │   ├── HashConfig.java              # PBKDF2 hashing
 │   ├── CacheConfig.java             # Redis/Caffeine cache
-│   ├── ClipCascadeProperties.java   # Configuration properties
+│   ├── AppProperties.java   # Configuration properties
 │   └── CustomAuthenticationSuccessHandler.java
 │
 ├── model/
@@ -248,7 +248,7 @@ ClipCascade_Backend/src/main/java/com/acme/clipcascade/
 │   └── SystemInfoService.java       # System health
 │
 ├── controller/
-│   └── ClipCascadeController.java   # REST + STOMP endpoints
+│   └── SkyClipController.java   # REST + STOMP endpoints
 │       ├ @PostMapping /login        # Login
 │       ├ @PostMapping /signup       # Register
 │       ├ @MessageMapping /clipboard # STOMP message handler
@@ -285,7 +285,7 @@ ClipCascade_Backend/src/main/java/com/acme/clipcascade/
 
 ---
 
-### **ClipCascade_Mobile/** (React Native)
+### **mobile/** (React Native)
 ```
 src/
 ├── App.tsx                          # Root component
@@ -373,7 +373,7 @@ accept-version:1.0,1.1,1.2
 SERVER → CLIENT:
 CONNECTED
 version:1.2
-server:ClipCascade-STOMP
+server:SkyClip-STOMP
 heartbeat:25000,25000
 ```
 
@@ -781,8 +781,8 @@ iOS: TBD (not yet implemented)
 
 ## 14. Contact & Support
 
-- **GitHub**: https://github.com/Sathvik-Rao/ClipCascade
-- **Email**: sathvik.poladi@gmail.com
+- **GitHub**: https://github.com/C0R3DMP/SkyClip
+- **Email**: https://github.com/C0R3DMP/SkyClip/issues
 - **Issues**: GitHub Issues page
 - **Discussions**: GitHub Discussions
 
