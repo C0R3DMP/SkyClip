@@ -5,3 +5,14 @@ screenshots/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Compiled binaries & release artifacts — use GitHub Releases instead
+*.jar
+*.apk
+*.msi
+*.exe
+*.zip
+apps/
+
+# Build-critical wrapper jar is allowed
+!**/gradle/wrapper/gradle-wrapper.jar
