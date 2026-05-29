@@ -81,6 +81,12 @@ public class LoginAttemptService {
                 username, ipAddress, deletedCount);
     }
 
+    public int manualUnlockByIp(String ipAddress) {
+        int deletedCount = loginAttemptRepo.deleteByIpAddress(ipAddress);
+        logger.warn("Admin manual unlock for ip='{}'. Deleted {} attempts.", ipAddress, deletedCount);
+        return deletedCount;
+    }
+
     public int cleanupOldAttempts(int hoursOld) {
         LocalDateTime cutoffTime = LocalDateTime.now().minusHours(hoursOld);
         int deletedCount = loginAttemptRepo.deleteOlderThan(cutoffTime);

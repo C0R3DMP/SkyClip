@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 
 import com.acme.clipcascade.config.ClipCascadeProperties;
 import com.acme.clipcascade.constants.RoleConstants;
-import com.acme.clipcascade.model.IpAttemptDetails;
 import com.acme.clipcascade.model.UserInfo;
 import com.acme.clipcascade.model.Users;
 import com.acme.clipcascade.utils.IpAddressResolver;
@@ -131,22 +130,13 @@ public class FacadeUserService {
         return userService.updateUserStatus(username, enable);
     }
 
-    public UserInfo setLoginDetails(String username, IpAttemptDetails ipDetails) {
-        int lockCount = ipDetails.getLockCount();
-        if (ipDetails.getAttempts() == 0) {
-            lockCount -= 1;
-        }
-        String lockoutTime = TimeUtility.convertSecondsToString(
-                clipCascadeProperties.getLockTimeoutSeconds()
-                        * (lockCount * clipCascadeProperties.getLockTimeoutScalingFactor()));
-
+    public UserInfo setLoginDetails(String username) {
         return userInfoService.setLoginDetails(
                 username,
                 IpAddressResolver.getUserIpAddress(),
                 TimeUtility.getCurrentTimeInSeconds(),
-                (ipDetails.getAttempts() + (ipDetails.getLockCount() * clipCascadeProperties.getMaxAttemptsPerIp()))
-                        - 1,
-                lockoutTime);
+                0,
+                null);
     }
 
     public void deleteInactiveUsers(SessionService sessionService, Set<Users> excludedUsers) {

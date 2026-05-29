@@ -12,22 +12,15 @@ import com.acme.clipcascade.repo.UserRepo;
 public class MyUserDetailsService implements UserDetailsService {
 
     private final UserRepo userRepo;
-    private final BruteForceProtectionService bruteForceProtectionService;
 
-    MyUserDetailsService(
-            UserRepo userRepo,
-            BruteForceProtectionService bruteForceProtectionService) {
-
+    MyUserDetailsService(UserRepo userRepo) {
         this.userRepo = userRepo;
-        this.bruteForceProtectionService = bruteForceProtectionService;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userRepo.findById(username)
-                .map(user -> new UserPrincipal(
-                        user,
-                        bruteForceProtectionService))
+                .map(user -> new UserPrincipal(user))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
 

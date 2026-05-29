@@ -8,27 +8,18 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import com.acme.clipcascade.constants.RoleConstants;
-import com.acme.clipcascade.service.BruteForceProtectionService;
 
 public class UserPrincipal implements UserDetails {
 
     private Users user;
 
-    private final BruteForceProtectionService bruteForceProtectionService;
-
-    public UserPrincipal(
-            Users user,
-            BruteForceProtectionService bruteForceProtectionService) {
-
+    public UserPrincipal(Users user) {
         this.user = user;
-        this.bruteForceProtectionService = bruteForceProtectionService;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-
-        // validate attempt using brute force protection
-        return bruteForceProtectionService.recordAndValidateAttempt(user.getUsername());
+        return true;
     }
 
     @Override

@@ -12,8 +12,8 @@ import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import com.acme.clipcascade.service.BruteForceProtectionService;
 import com.acme.clipcascade.service.FacadeUserService;
 import com.acme.clipcascade.service.LoginAttemptService;
 
@@ -23,20 +23,17 @@ public class SecurityConfiguration {
 
 	private final UserDetailsService userDetailsService;
 	private final BCryptPasswordEncoder bCryptPasswordEncoder;
-	private final BruteForceProtectionService bruteForceProtectionService;
 	private final FacadeUserService facadeUserService;
 	private final LoginAttemptService loginAttemptService;
 
 	SecurityConfiguration(
 			UserDetailsService userDetailsService,
 			BCryptPasswordEncoder bCryptPasswordEncoder,
-			BruteForceProtectionService bruteForceProtectionService,
 			FacadeUserService facadeUserService,
 			LoginAttemptService loginAttemptService) {
 
 		this.userDetailsService = userDetailsService;
 		this.bCryptPasswordEncoder = bCryptPasswordEncoder;
-		this.bruteForceProtectionService = bruteForceProtectionService;
 		this.facadeUserService = facadeUserService;
 		this.loginAttemptService = loginAttemptService;
 	}
@@ -56,7 +53,7 @@ public class SecurityConfiguration {
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		LoginAttemptFilter loginAttemptFilter = new LoginAttemptFilter(loginAttemptService);
-		loginAttemptFilter.setFilterProcessesUrl("/login");
+		LoginAttemptFailureHandler failureHandler = new LoginAttemptFailureHandler(loginAttemptService);
 
 		return http
 				.authorizeHttpRequests((authorize) -> authorize
@@ -75,12 +72,10 @@ public class SecurityConfiguration {
 						.anyRequest().authenticated())
 				.formLogin(form -> form
 						.loginPage("/login")
-						.failureUrl("/login?error")
+						.failureHandler(failureHandler)
 						.successHandler(
-								new CustomAuthenticationSuccessHandler(
-										bruteForceProtectionService,
-										facadeUserService)))
-				.addFilter(loginAttemptFilter)
+								new CustomAuthenticationSuccessHandler(facadeUserService)))
+				.addFilterBefore(loginAttemptFilter, UsernamePasswordAuthenticationFilter.class)
 				.logout(logout -> logout
 						.logoutUrl("/logout")
 						.logoutSuccessUrl("/login?logout"))
