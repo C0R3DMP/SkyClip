@@ -25,17 +25,14 @@ services:
       retries: 5
 
   clipcascade:
-    image: sathvikrao/clipcascade:0.7.0
-    # # 🚀 If you want to always use the latest version of ClipCascade Server, uncomment the line below and comment out the line above.
-    # # Note: If using 'latest', make sure all client devices are updated regularly to maintain compatibility.
-    # image: sathvikrao/clipcascade:latest
+    image: skyclip:latest
 
     # # 🏷️ Assign a name to the container
     container_name: clipcascade
 
     # # 🌐 Map port 8080 on the host to port 8080 inside the container.
     ports:
-      - 8080:8080
+      - 8090:8080
 
     # # 🔄 Automatically restart the container if it stops unexpectedly.
     restart: always

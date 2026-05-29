@@ -7,7 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.HashMap;
@@ -62,7 +62,7 @@ public class EcdhController {
             String sessionId = httpRequest.getSession().getId();
 
             // Step 2: Parse client's public key
-            PublicKey clientPublicKey = ecdhService.parsePublicKey(request.getPublic_key());
+            PublicKey clientPublicKey = ecdhService.parsePublicKey(request.public_key);
 
             // Step 3: Generate server keypair
             KeyPair serverKeyPair = ecdhService.generateKeypair();

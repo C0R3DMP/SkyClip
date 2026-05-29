@@ -10,15 +10,11 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.util.WebUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.acme.clipcascade.service.LoginAttemptService;
 
-public class LoginAttemptFilter extends UsernamePasswordAuthenticationFilter {
+public class LoginAttemptFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginAttemptFilter.class);
 
@@ -29,51 +25,29 @@ public class LoginAttemptFilter extends UsernamePasswordAuthenticationFilter {
     }
 
     @Override
-    public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
-            throws AuthenticationException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
 
-        String username = request.getParameter("username");
-        String clientIp = getClientIpAddress(request);
+        if ("POST".equalsIgnoreCase(request.getMethod()) && "/login".equals(request.getServletPath())) {
+            String username = request.getParameter("username");
+            String clientIp = getClientIpAddress(request);
 
-        if (loginAttemptService.isLockedOut(username, clientIp)) {
-            Duration timeRemaining = loginAttemptService.getTimeUntilUnlock(username, clientIp);
-            long minutesRemaining = timeRemaining.toMinutes();
-            String errorMsg = String.format("Too many attempts. Try again in %d minutes.", minutesRemaining);
+            if (loginAttemptService.isLockedOut(username, clientIp)) {
+                Duration timeRemaining = loginAttemptService.getTimeUntilUnlock(username, clientIp);
+                long minutesRemaining = Math.max(1, timeRemaining.toMinutes());
 
-            logger.warn("Login blocked due to rate limiting: username='{}', ip='{}', minutes_until_unlock={}",
-                    username, clientIp, minutesRemaining);
+                logger.warn("Login blocked by rate limiter: username='{}', ip='{}', minutes_until_unlock={}",
+                        username, clientIp, minutesRemaining);
 
-            throw new LoginAttemptExceededException(errorMsg);
+                response.setStatus(429);
+                response.setContentType("text/plain");
+                response.getWriter().write(
+                        String.format("Too many attempts. Try again in %d minutes.", minutesRemaining));
+                return;
+            }
         }
 
-        return super.attemptAuthentication(request, response);
-    }
-
-    @Override
-    protected void successfulAuthentication(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain chain,
-            Authentication authResult) throws IOException, ServletException {
-
-        String username = authResult.getName();
-        String clientIp = getClientIpAddress(request);
-
-        loginAttemptService.recordSuccess(username, clientIp);
-        super.successfulAuthentication(request, response, chain, authResult);
-    }
-
-    @Override
-    protected void unsuccessfulAuthentication(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            AuthenticationException failed) throws IOException, ServletException {
-
-        String username = request.getParameter("username");
-        String clientIp = getClientIpAddress(request);
-
-        loginAttemptService.recordFailure(username, clientIp);
-        super.unsuccessfulAuthentication(request, response, failed);
+        chain.doFilter(request, response);
     }
 
     private String getClientIpAddress(HttpServletRequest request) {
@@ -81,12 +55,10 @@ public class LoginAttemptFilter extends UsernamePasswordAuthenticationFilter {
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
             return xForwardedFor.split(",")[0].trim();
         }
-
         String xRealIp = request.getHeader("X-Real-IP");
         if (xRealIp != null && !xRealIp.isEmpty()) {
             return xRealIp;
         }
-
         return request.getRemoteAddr();
     }
 }
