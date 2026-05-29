@@ -1,36 +1,35 @@
 {
-  "name": "ClipCascade",
-  "version": "https://raw.githubusercontent.com/Sathvik-Rao/ClipCascade/main/version.json",
-  "description": "A lightweight utility to sync clipboard content seamlessly across devices with privacy and encryption.",
+  "name": "SkyClip",
+  "version": "https://raw.githubusercontent.com/C0R3DMP/SkyClip/main/version.json",
+  "description": "A self-hosted, end-to-end encrypted clipboard sync utility with production-grade security.",
   "author": {
-    "name": "Sathvik Rao",
-    "email": "sathvik.poladi@gmail.com",
-    "website": "https://github.com/Sathvik-Rao/ClipCascade"
+    "name": "C0R3DMP",
+    "website": "https://github.com/C0R3DMP/SkyClip"
   },
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Sathvik-Rao/ClipCascade"
+    "url": "https://github.com/C0R3DMP/SkyClip"
   },
-  "releaseDate": "2024-09-22",
-  "funding": "https://www.paypal.com/donate/?business=SKHQU2CL3TCLN&no_recurring=0&item_name=Support+Sathvik-Rao%27s+open+source+work&currency_code=USD",
+  "releaseDate": "2026-05-29",
   "keywords": [
     "clipboard",
     "sync",
     "cross-platform",
     "open-source",
     "utility",
-    "encryption"
+    "encryption",
+    "self-hosted",
+    "security"
   ],
   "bugs": {
-    "url": "https://github.com/Sathvik-Rao/ClipCascade/issues",
-    "email": "sathvik.poladi@gmail.com"
+    "url": "https://github.com/C0R3DMP/SkyClip/issues"
   },
   "discussions": {
-    "url": "https://github.com/Sathvik-Rao/ClipCascade/discussions"
+    "url": "https://github.com/C0R3DMP/SkyClip/discussions"
   },
   "releases": {
-    "url": "https://github.com/Sathvik-Rao/ClipCascade/releases"
+    "url": "https://github.com/C0R3DMP/SkyClip/releases"
   },
   "platforms": {
     "server": {

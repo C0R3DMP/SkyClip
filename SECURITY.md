@@ -112,7 +112,7 @@ pip install argon2-cffi==23.1.0
 
 ### New Config Field
 
-**File:** `ClipCascade_Desktop/src/core/config.py`
+**File:** `desktop/src/core/config.py`
 
 ```json
 {
@@ -147,7 +147,7 @@ On next successful login.
 
 ### Unit Tests
 
-Location: `ClipCascade_Desktop/tests/test_cipher_manager.py`
+Location: `desktop/tests/test_cipher_manager.py`
 
 **Test Coverage:**
 1. Argon2id key derivation (deterministic)
