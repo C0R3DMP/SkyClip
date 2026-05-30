@@ -25,8 +25,8 @@ services:
       - CC_SERVER_DB_USERNAME=clipcascade
 
       # ⚠️  DEV ONLY — Do not use in production
-      # This is the default H2 encryption password for development
-      - CC_SERVER_DB_PASSWORD=QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky
+      # Override CC_SERVER_DB_PASSWORD with your own value for persistent H2 databases
+      - CC_SERVER_DB_PASSWORD=changeme-dev-only
 
       - CC_SERVER_DB_HIBERNATE_DIALECT=org.hibernate.dialect.H2Dialect
       - SPRING_PROFILES_ACTIVE=h2

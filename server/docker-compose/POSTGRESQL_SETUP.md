@@ -82,7 +82,7 @@ docker-compose -f docker-compose-h2.yml up
    docker exec clipcascade-h2 java -cp /app.jar org.h2.tools.Shell \
      -url "jdbc:h2:file:./database/clipcascade;CIPHER=AES" \
      -user clipcascade \
-     -password QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky \
+     -password "$CC_SERVER_DB_PASSWORD" \
      -sql "SCRIPT TO 'export.sql';" > h2_export.sql
    ```
 

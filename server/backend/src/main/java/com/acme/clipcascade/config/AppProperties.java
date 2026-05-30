@@ -188,13 +188,14 @@ public class AppProperties {
     private String serverDbUsername;
 
     /*
-     * Server database host (default: QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky)
+     * Server database password.
      * note: Ensure configuration is included in the application.properties file as
      * well.
-     * 
-     * <file password> and <user password> are for h2 file database
+     *
+     * For H2 (dev): override CC_SERVER_DB_PASSWORD; defaults to "changeme-dev-only".
+     * For PostgreSQL (prod): CC_SERVER_DB_PASSWORD must be set — no default.
      */
-    @Value("${CC_SERVER_DB_PASSWORD:QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky}")
+    @Value("${CC_SERVER_DB_PASSWORD:changeme-dev-only}")
     private String serverDbPassword;
 
     /*
