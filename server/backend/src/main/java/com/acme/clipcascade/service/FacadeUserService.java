@@ -1,8 +1,12 @@
 package com.acme.clipcascade.service;
 
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.acme.clipcascade.config.AppProperties;
@@ -15,6 +19,8 @@ import com.acme.clipcascade.utils.UserValidator;
 
 @Service
 public class FacadeUserService {
+
+    private static final Logger log = LoggerFactory.getLogger(FacadeUserService.class);
 
     private final UserService userService;
     private final UserInfoService userInfoService;
@@ -32,13 +38,26 @@ public class FacadeUserService {
 
     public void insertDefaultAdminUserIfEmpty() {
         if (userService.isTableEmpty()) {
+            String password = System.getenv("CC_ADMIN_PASSWORD");
+            boolean generated = false;
+            if (password == null || password.isBlank()) {
+                byte[] bytes = new byte[15];
+                new SecureRandom().nextBytes(bytes);
+                password = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+                generated = true;
+            }
             userService.doubleHashAndCreateUser(
                     "admin",
-                    "admin123",
+                    password,
                     RoleConstants.ADMIN,
                     true);
-
             userInfoService.registerNewUser("admin");
+            if (generated) {
+                log.warn("=================================================================");
+                log.warn("  GENERATED ADMIN PASSWORD (first-run only): {}", password);
+                log.warn("  Set CC_ADMIN_PASSWORD env var to use a known password instead.");
+                log.warn("=================================================================");
+            }
         }
     }
 
