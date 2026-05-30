@@ -63,7 +63,8 @@ docker compose up -d
 
 The server starts at `http://localhost:8090`. Change the host port in `docker-compose.yml` if 8090 conflicts.
 
-Default admin credentials: **admin / admin123** — change immediately after first login.
+On first run, set `CC_ADMIN_PASSWORD` in your environment to choose the admin password.
+If unset, a random password is auto-generated and printed once to the server startup log — check the log for the line marked **GENERATED ADMIN PASSWORD**.
 
 **Development (H2, no PostgreSQL):**
 ```bash

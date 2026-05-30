@@ -151,6 +151,7 @@ For development only. No external dependencies.
 
 ### Optional
 
+- `CC_ADMIN_PASSWORD` — Admin password set on first run (when the database is empty). If unset, a random password is auto-generated and printed once to the startup log — check for the line marked **GENERATED ADMIN PASSWORD**. Has no effect after the first run.
 - `SPRING_PROFILES_ACTIVE` — Profile selection (`postgres` or `h2`, default: `postgres`)
 - Other SkyClip settings (see main docker-compose.yml)
 
