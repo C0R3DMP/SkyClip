@@ -467,24 +467,17 @@ export default function App() {
         return [false, 'No CSRF token found in login page', data_s];
       }
 
-      // 2. Retrieve the cookie(s) from the "Set-Cookie" header
-      const setCookieHeader = loginPageResponse.headers.get('set-cookie');
-      if (!setCookieHeader) {
-        return [false, 'No Set-Cookie header returned from login page', null];
-      }
-
-      // 3. Prepare form data with the credentials AND the CSRF token
+      // 2. Prepare form data with the credentials AND the CSRF token
       const formData = new URLSearchParams();
       formData.append('username', data_s.username);
       formData.append('password', password_s);
       formData.append('_csrf', csrfToken);
 
-      // 4. Send a POST request to the login URL with cookies + form data
+      // 4. Send a POST request to the login URL with CSRF token
       const loginResponse = await fetchTimeout(data_s.server_url + LOGIN_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          Cookie: setCookieHeader, // Include the cookies from the initial GET
         },
         body: formData.toString(),
       });

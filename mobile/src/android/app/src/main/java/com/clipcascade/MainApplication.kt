@@ -10,10 +10,19 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
+import com.facebook.react.modules.network.OkHttpClientProvider
+import com.facebook.react.modules.network.ReactCookieJarContainer
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
+import okhttp3.JavaNetCookieJar
+import java.net.CookieManager
+import java.net.CookiePolicy
 
 class MainApplication : Application(), ReactApplication {
+
+  companion object {
+    lateinit var httpCookieManager: CookieManager
+  }
 
   override val reactNativeHost: ReactNativeHost =
       object : DefaultReactNativeHost(this) {
@@ -40,5 +49,8 @@ class MainApplication : Application(), ReactApplication {
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       load()
     }
+    httpCookieManager = CookieManager().also { it.setCookiePolicy(CookiePolicy.ACCEPT_ALL) }
+    (OkHttpClientProvider.getOkHttpClient().cookieJar as ReactCookieJarContainer)
+        .setCookieJar(JavaNetCookieJar(httpCookieManager))
   }
 }
