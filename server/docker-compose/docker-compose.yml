@@ -2,10 +2,10 @@ version: '3.8'
 
 # # 🌐 GitHub Repository: https://github.com/C0R3DMP/SkyClip
 # # 🐳 Docker Compose configuration for deploying SkyClip Server.
-# # ⚠️ IMPORTANT: Update the default admin credentials after the first login.
-# # 🔑 Default admin credentials:
-# #       Username: admin
-# #       Password: admin123
+# # ⚠️ IMPORTANT: Set CC_ADMIN_PASSWORD in your environment before starting.
+# # 🔑 Admin credentials are configured via environment variables:
+# #       Username: set CC_ADMIN_USERNAME (default: admin)
+# #       Password: set CC_ADMIN_PASSWORD (required — see README)
 # # Health check endpoint is available at http://localhost:8080/health
 
 services:

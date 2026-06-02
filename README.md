@@ -8,6 +8,41 @@
 
 ---
 
+## ⚠️ Security Advisory — v1.0.0 Users
+
+**A critical bug in v1.0.0 hardcoded the admin password to `admin123` and silently ignored
+`CC_ADMIN_PASSWORD`.** Every v1.0.0 deployment — regardless of how `CC_ADMIN_PASSWORD` was
+configured — has admin credentials of `admin` / `admin123` with no warning in the UI or logs.
+
+**v1.0.1 fixes this.** `CC_ADMIN_PASSWORD` is now fully honored. If unset, a strong random
+password is generated at startup and printed once to the server log — look for the line marked
+**`GENERATED ADMIN PASSWORD`**.
+
+**Action required if you ran v1.0.0:**
+1. Upgrade to v1.0.1 immediately.
+2. **Existing database:** the admin password is still `admin123` in your stored data — log in
+   with `admin` / `admin123` and change it immediately. **Fresh install:** set
+   `CC_ADMIN_PASSWORD` before first launch; `admin123` will not work.
+3. Review your server access logs for unauthorized logins during the exposure window.
+
+---
+
+## What's New in v1.0.1
+
+**Security**
+- Fixed critical bug: admin password was hardcoded to `admin123`; `CC_ADMIN_PASSWORD` is now
+  honored (if unset, a random password is generated and logged at startup)
+
+**Android**
+- Session persistence: app stays logged in across restarts (cookie jar fix)
+- Login reliability: resolved authentication failures caused by missing session cookies
+- Clearer error messages when login fails or the server is unreachable
+
+**Branding**
+- UI now consistently shows SkyClip throughout (no remaining ClipCascade references)
+
+---
+
 ## Why SkyClip?
 
 Every mainstream clipboard sync tool (Apple Handoff, Windows Phone Link, Android apps) sends your clipboard through a vendor's cloud. You're trusting a company with every password, code snippet, and sensitive note you copy.
@@ -54,6 +89,7 @@ cd SkyClip/server/docker-compose
 # Required environment variables
 export CC_DB_USER=clipcascade
 export CC_DB_PASSWORD=your_secure_db_password
+export CC_ADMIN_PASSWORD=your_secure_admin_password
 export CC_SERVER_DB_URL=jdbc:postgresql://postgres:5432/clipcascade
 export CC_SERVER_DB_DRIVER=org.postgresql.Driver
 export CC_SERVER_DB_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
@@ -63,8 +99,7 @@ docker compose up -d
 
 The server starts at `http://localhost:8090`. Change the host port in `docker-compose.yml` if 8090 conflicts.
 
-On first run, set `CC_ADMIN_PASSWORD` in your environment to choose the admin password.
-If unset, a random password is auto-generated and printed once to the server startup log — check the log for the line marked **GENERATED ADMIN PASSWORD**.
+If `CC_ADMIN_PASSWORD` is unset, a random password is generated at startup — check the log for the line marked **`GENERATED ADMIN PASSWORD`**.
 
 **Development (H2, no PostgreSQL):**
 ```bash

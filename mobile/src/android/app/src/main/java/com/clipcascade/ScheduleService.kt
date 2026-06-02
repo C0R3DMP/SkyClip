@@ -87,7 +87,7 @@ class ScheduleService(context: Context, workerParams: WorkerParameters) : Corout
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 NOTIFICATION_CHANNEL_ID,
-                "ClipCascade Alerts",
+                "SkyClip Alerts",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
             notificationManager.createNotificationChannel(channel)
@@ -107,8 +107,8 @@ class ScheduleService(context: Context, workerParams: WorkerParameters) : Corout
 
             val notification = NotificationCompat.Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification_failure)
-                .setContentTitle("ClipCascade Service Inactive")
-                .setContentText("ClipCascade monitoring is inactive. Tap to restart.")
+                .setContentTitle("SkyClip Service Inactive")
+                .setContentText("SkyClip monitoring is inactive. Tap to restart.")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)

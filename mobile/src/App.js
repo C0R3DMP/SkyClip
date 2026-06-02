@@ -90,7 +90,7 @@ export default function App() {
   const GITHUB_URL = 'https://github.com/Sathvik-Rao/ClipCascade';
   const RELEASE_URL =
     'https://github.com/Sathvik-Rao/ClipCascade/releases/latest';
-  const APP_NAME = 'ClipCascade';
+  const APP_NAME = 'SkyClip';
   const HELP_URL = `${GITHUB_URL}/blob/main/README.md`;
   const METADATA_URL =
     'https://raw.githubusercontent.com/Sathvik-Rao/ClipCascade/main/metadata.json';
@@ -1250,18 +1250,18 @@ export default function App() {
                 <Text style={styles.label}>
                   On Android 10 and above, clipboard monitoring has been
                   restricted for privacy reasons. To share clipboard content
-                  using ClipCascade:
+                  using SkyClip:
                 </Text>
                 <View style={{ marginTop: 10, marginLeft: 15 }}>
                   <Text style={styles.label}>
                     1. Select the text, image, or file(s) you want to copy.
                   </Text>
                   <Text style={styles.label}>
-                    2. Tap 'Share', select 'ClipCascade'.
+                    2. Tap 'Share', select 'SkyClip'.
                   </Text>
                   <Text style={[styles.label, { marginLeft: 15 }]}>(or)</Text>
                   <Text style={[styles.label, { marginLeft: 15 }]}>
-                    Tap 'ClipCascade' instead of 'Copy'.
+                    Tap 'SkyClip' instead of 'Copy'.
                   </Text>
                 </View>
                 <Text
@@ -1285,7 +1285,7 @@ export default function App() {
                   Background Clipboard Reception:
                 </Text>
                 <Text style={styles.label}>
-                  ClipCascade automatically receives clipboard content in the
+                  SkyClip automatically receives clipboard content in the
                   background. No manual action is required to receive data.
                 </Text>
               </View>
@@ -1301,7 +1301,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.label}>
                   To ensure uninterrupted performance, please disable battery
-                  optimization for ClipCascade. This will prevent the system
+                  optimization for SkyClip. This will prevent the system
                   from stopping the app when it's running in the foreground.
                 </Text>
               </View>

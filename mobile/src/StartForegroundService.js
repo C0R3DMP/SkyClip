@@ -1550,14 +1550,14 @@ module.exports = async (inputData = null) => {
     // Create a notification channel for the foreground service
     const channelId = await notifee.createChannel({
       id: 'ClipCascade',
-      name: 'ClipCascade Monitor',
+      name: 'SkyClip Monitor',
       importance: AndroidImportance.LOW,
       sound: '',
     });
 
     // Display a notification to start the foreground service
     await notifee.displayNotification({
-      title: 'ClipCascade',
+      title: 'SkyClip',
       android: {
         channelId,
         asForegroundService: true,
@@ -1573,14 +1573,14 @@ module.exports = async (inputData = null) => {
     // Create a notification channel for download progress
     await notifee.createChannel({
       id: 'ClipCascade_Progress',
-      name: 'ClipCascade Download Progress',
+      name: 'SkyClip Download Progress',
       importance: AndroidImportance.DEFAULT,
     });
 
     // Create a notification channel for connection status
     await notifee.createChannel({
       id: 'ClipCascade_Connection_Status',
-      name: 'ClipCascade Connection Status',
+      name: 'SkyClip Connection Status',
       importance: AndroidImportance.HIGH,
     });
 
