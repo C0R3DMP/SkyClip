@@ -33,6 +33,7 @@ import {
   clearAsyncStorage,
 } from './AsyncStorageManagement';
 import StartForegroundService from './StartForegroundService';
+import EncryptedStorage from 'react-native-encrypted-storage';
 
 /*
  * These files are part of the ClipCascade project.
@@ -81,6 +82,7 @@ export default function App() {
   const SERVER_MODE_URL = '/server-mode';
   const WEBSOCKET_ENDPOINT = '/clipsocket';
   const VALIDATE_URL = '/validate-session';
+  const SESSION_COOKIE_KEY = 'skyclip_session_cookie';
   const WEBSOCKET_ENDPOINT_P2P = '/p2psignaling';
   const STUN_URL = '/stun-url';
   const VERSION_URL =
@@ -258,6 +260,13 @@ export default function App() {
           setEnableWSPage(true);
         } else {
           await setDataInAsyncStorage('p2pStatusMessage', '');
+          // restore persisted session cookie before validating
+          try {
+            const storedCookie = await EncryptedStorage.getItem(SESSION_COOKIE_KEY);
+            if (storedCookie) {
+              await NativeBridgeModule.restoreSessionCookie(data_s.server_url, storedCookie);
+            }
+          } catch (_) {}
           //validate session
           setLoadingPageMessage('Verifying Session...');
           validResult = await validateSession(data_s);
@@ -439,8 +448,10 @@ export default function App() {
       );
 
       if (!loginPageResponse.ok) {
-        const msg = `Failed to fetch login page: ${loginPageResponse.status}`;
-        return [false, msg, data_s];
+        if (loginPageResponse.status === 429) {
+          return [false, 'Too many login attempts. Wait 15 minutes and try again.', data_s, false];
+        }
+        return [false, `Could not reach login page (${loginPageResponse.status}). Check the server URL.`, data_s, false];
       }
 
       // parse HTML to get _csrf using react-native-html-parser
@@ -464,7 +475,7 @@ export default function App() {
       }
 
       if (csrfToken === '') {
-        return [false, 'No CSRF token found in login page', data_s];
+        return [false, 'No CSRF token found in login page', data_s, false];
       }
 
       // 2. Prepare form data with the credentials AND the CSRF token
@@ -485,108 +496,119 @@ export default function App() {
       const loginResponseText = await loginResponse.text();
 
       // 5. Check for login success
-      if (
-        loginResponse.ok &&
-        !loginResponseText.toLowerCase().includes('bad credentials')
-      ) {
-        // get CSRF token
-        data_s.csrf_token = await getCSRFToken(data_s);
+      if (!loginResponse.ok) {
+        if (loginResponse.status === 429) {
+          return [false, 'Too many login attempts. Wait 15 minutes and try again.', data_s, false];
+        }
+        return [false, `Login failed (${loginResponse.status}). Check credentials or server.`, data_s, false];
+      }
+      if (loginResponseText.toLowerCase().includes('bad credentials')) {
+        return [false, 'Incorrect username or password.', data_s, false];
+      }
 
-        // get server mode
-        const serverModeResponse = await fetchTimeout(
-          data_s.server_url + SERVER_MODE_URL,
+      // get CSRF token
+      data_s.csrf_token = await getCSRFToken(data_s);
+
+      // get server mode
+      const serverModeResponse = await fetchTimeout(
+        data_s.server_url + SERVER_MODE_URL,
+        {
+          method: 'GET',
+        },
+      );
+      if (!serverModeResponse.ok) {
+        return [
+          false,
+          'Login Successful but unable to get server mode; Status: ' +
+            serverModeResponse.status,
+          data_s,
+          false,
+        ];
+      }
+      const serverModeResponseText = await serverModeResponse.text();
+      data_s.server_mode = String(JSON.parse(serverModeResponseText).mode);
+
+      if (data_s.server_mode === 'P2P') {
+        data_s.maxsize = '-1';
+
+        // get stun url
+        const stunUrlResponse = await fetchTimeout(
+          data_s.server_url + STUN_URL,
           {
             method: 'GET',
           },
         );
-        if (!serverModeResponse.ok) {
+        if (!stunUrlResponse.ok) {
           return [
             false,
-            'Login Successful but unable to get server mode; Status: ' +
-              serverModeResponse.status,
+            'Login Successful but unable to get stun url; Status: ' +
+              stunUrlResponse.status,
             data_s,
+            false,
           ];
         }
-        const serverModeResponseText = await serverModeResponse.text();
-        data_s.server_mode = String(JSON.parse(serverModeResponseText).mode);
+        const stunUrlResponseText = await stunUrlResponse.text();
+        data_s.stun_url = String(JSON.parse(stunUrlResponseText).url);
 
-        if (data_s.server_mode === 'P2P') {
-          data_s.maxsize = '-1';
+        // convert server_url to websocket url
+        data_s.websocket_url = await convertToWebSocketUrl(
+          data_s.server_url,
+          WEBSOCKET_ENDPOINT_P2P,
+        );
+      } else if (data_s.server_mode === 'P2S') {
+        data_s.stun_url = '';
 
-          // get stun url
-          const stunUrlResponse = await fetchTimeout(
-            data_s.server_url + STUN_URL,
-            {
-              method: 'GET',
-            },
-          );
-          if (!stunUrlResponse.ok) {
-            return [
-              false,
-              'Login Successful but unable to get stun url; Status: ' +
-                stunUrlResponse.status,
-              data_s,
-            ];
-          }
-          const stunUrlResponseText = await stunUrlResponse.text();
-          data_s.stun_url = String(JSON.parse(stunUrlResponseText).url);
-
-          // convert server_url to websocket url
-          data_s.websocket_url = await convertToWebSocketUrl(
-            data_s.server_url,
-            WEBSOCKET_ENDPOINT_P2P,
-          );
-        } else if (data_s.server_mode === 'P2S') {
-          data_s.stun_url = '';
-
-          // get max size
-          const maxSizeResponse = await fetchTimeout(
-            data_s.server_url + MAXSIZE_URL,
-            {
-              method: 'GET',
-            },
-          );
-          if (!maxSizeResponse.ok) {
-            return [
-              false,
-              'Login Successful but unable to get max size; Status: ' +
-                maxSizeResponse.status,
-              data_s,
-            ];
-          }
-          const maxSizeResponseText = await maxSizeResponse.text();
-          data_s.maxsize = String(JSON.parse(maxSizeResponseText).maxsize);
-
-          // convert server_url to websocket url
-          data_s.websocket_url = await convertToWebSocketUrl(
-            data_s.server_url,
-            WEBSOCKET_ENDPOINT,
-          );
+        // get max size
+        const maxSizeResponse = await fetchTimeout(
+          data_s.server_url + MAXSIZE_URL,
+          {
+            method: 'GET',
+          },
+        );
+        if (!maxSizeResponse.ok) {
+          return [
+            false,
+            'Login Successful but unable to get max size; Status: ' +
+              maxSizeResponse.status,
+            data_s,
+            false,
+          ];
         }
+        const maxSizeResponseText = await maxSizeResponse.text();
+        data_s.maxsize = String(JSON.parse(maxSizeResponseText).maxsize);
 
-        // Hash the password for encryption
-        if (data_s.cipher_enabled === 'true') {
-          hashResult = await hash(data_s, password);
-          data_s = hashResult[2];
-          if (!hashResult[0]) {
-            return [
-              false,
-              'Login successful but error generating hash: ' + hashResult[1],
-              data_s,
-            ];
-          }
-          data_s.hashed_password = hashResult[1].toString('base64');
-        }
-
-        return [true, 'Login successful: ' + loginResponse.status, data_s];
-      } else {
-        return [false, 'Login failed: ' + loginResponse.status, data_s];
+        // convert server_url to websocket url
+        data_s.websocket_url = await convertToWebSocketUrl(
+          data_s.server_url,
+          WEBSOCKET_ENDPOINT,
+        );
       }
+
+      // Hash the password for encryption
+      if (data_s.cipher_enabled === 'true') {
+        hashResult = await hash(data_s, password);
+        data_s = hashResult[2];
+        if (!hashResult[0]) {
+          return [
+            false,
+            'Login successful but error generating hash: ' + hashResult[1],
+            data_s,
+            false,
+          ];
+        }
+        data_s.hashed_password = hashResult[1].toString('base64');
+      }
+
+      return [true, 'Login successful.', data_s, false];
     } catch (error) {
       if (error.name === 'AbortError') {
-        return [false, 'Error: Request timed out', data_s];
+        return [false, 'Server did not respond in time. Check your connection.', data_s, true];
       }
-      return [false, 'Error: ' + error, data_s];
+      const msg = error.message || String(error);
+      if (msg.includes('Network request failed') || msg.includes('Failed to fetch')) {
+        return [false, 'Could not reach server. Check the URL and your network.', data_s, true];
+      }
+      return [false, 'Error: ' + msg, data_s, false];
     }
   };
 
@@ -640,6 +662,7 @@ export default function App() {
 
       // clear cookies if any
       NativeBridgeModule.clearCookies();
+      try { await EncryptedStorage.removeItem(SESSION_COOKIE_KEY); } catch (_) {}
     } catch (error) {
       if (error.name === 'AbortError') {
         setWsPageMessage('❌ Error: Request timed out');
@@ -749,6 +772,9 @@ export default function App() {
   // State to manage login status message
   const [loginStatusMessage, setLoginStatusMessage] = useState('');
 
+  // login in-flight guard (prevents double-tap concurrent requests)
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   // password
   const [password, setPassword] = useState('');
 
@@ -767,6 +793,7 @@ export default function App() {
   // Function to handle login button press
   const handleLogin = async (pass = null, data_s_c = null) => {
     try {
+      setIsLoggingIn(true);
       setLoginStatusMessage('⌛ Please wait...');
 
       // clear cookies if any
@@ -788,19 +815,29 @@ export default function App() {
         data_s = { ...data };
       }
 
-      // remove trailing slashes in server_url
-      data_s.server_url = data_s.server_url.replace(/\/+$/, '');
+      // normalize server_url: prepend http:// if no scheme, strip trailing slashes
+      let url = data_s.server_url.trim();
+      if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'http://' + url;
+      }
+      data_s.server_url = url.replace(/\/+$/, '');
 
       let iteration = 0;
       let loginResult;
       do {
+        if (iteration > 0) {
+          await new Promise(r => setTimeout(r, 1000));
+        }
         iteration++;
         loginResult = await login(data_s, password_s);
-      } while (!loginResult[0] && iteration < MAX_LOGIN_AUTO_RETRY);
+      } while (!loginResult[0] && loginResult[3] && iteration < MAX_LOGIN_AUTO_RETRY);
 
       data_s = loginResult[2];
       if (!loginResult[0]) {
-        setPassword('');
+        if (loginResult[1] === 'Incorrect username or password.') {
+          setPassword('');
+          try { await EncryptedStorage.removeItem(SESSION_COOKIE_KEY); } catch (_) {}
+        }
         setLoginStatusMessage(['❌ ', loginResult[1]].join(''));
       } else {
         setLoginStatusMessage(['✅ ', loginResult[1]].join(''));
@@ -821,6 +858,14 @@ export default function App() {
         // Save data in async storage
         await setAsyncStorage(data_s);
 
+        // Persist session cookie (hardware-backed EncryptedStorage) — never the password
+        try {
+          const cookieValue = await NativeBridgeModule.getSessionCookie();
+          if (cookieValue) {
+            await EncryptedStorage.setItem(SESSION_COOKIE_KEY, cookieValue);
+          }
+        } catch (_) {}
+
         // Save data_s in data state hook
         setData(data_s);
 
@@ -832,6 +877,8 @@ export default function App() {
       }
     } catch (e) {
       setLoginStatusMessage('❌ Error: ' + e);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -959,12 +1006,13 @@ export default function App() {
 
           {/* Login Button */}
           <TouchableOpacity
-            style={styles.loginButton}
-            onPress={() => {
-              handleLogin(null, null);
-            }}
+            style={[styles.loginButton, isLoggingIn && {opacity: 0.7}]}
+            onPress={() => handleLogin(null, null)}
+            disabled={isLoggingIn}
           >
-            <Text style={styles.loginButtonText}>Login</Text>
+            {isLoggingIn
+              ? <ActivityIndicator color="white" size="small" />
+              : <Text style={styles.loginButtonText}>Login</Text>}
           </TouchableOpacity>
 
           {/* Toggle Extra Config as Text */}

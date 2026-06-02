@@ -46,6 +46,31 @@ class NativeBridgeModule(reactContext: ReactApplicationContext) : ReactContextBa
             promise.reject("COOKIE_ERROR", "Failed to clear cookies", e)
         }
     }
+
+    @ReactMethod
+    fun getSessionCookie(promise: Promise) {
+        try {
+            val cookie = MainApplication.httpCookieManager.cookieStore.cookies
+                .firstOrNull { it.name == "JSESSIONID" }
+            promise.resolve(cookie?.value)
+        } catch (e: Exception) {
+            promise.reject("COOKIE_ERROR", "Failed to get session cookie", e)
+        }
+    }
+
+    @ReactMethod
+    fun restoreSessionCookie(serverUrl: String, cookieValue: String, promise: Promise) {
+        try {
+            val uri = java.net.URI(serverUrl)
+            val cookie = java.net.HttpCookie("JSESSIONID", cookieValue)
+            cookie.path = "/"
+            cookie.version = 0
+            MainApplication.httpCookieManager.cookieStore.add(uri, cookie)
+            promise.resolve("Session cookie restored.")
+        } catch (e: Exception) {
+            promise.reject("COOKIE_ERROR", "Failed to restore session cookie", e)
+        }
+    }
     
     @ReactMethod
     fun stopWorkManager() {
