@@ -27,6 +27,29 @@ password is generated at startup and printed once to the server log — look for
 
 ---
 
+## What's New in v1.0.2
+
+**Security**
+- Trusted proxy hardening (S-01): `X-Forwarded-For` restricted to configured upstream only
+- Session security (S-03): secure cookie flags, idle timeout, session fixation protection
+- Content Security Policy (S-05): strict CSP headers on all server responses
+- WebSocket broker hardening (S-06): destination prefix restrictions enforced
+- Mobile credential storage (S-02 + S-04): `password` and `hashed_password` migrated from
+  AsyncStorage (plaintext) to Android `EncryptedStorage` (hardware-backed AES-256)
+
+**Bug fixes**
+- Version check no longer shows false "update available" (was comparing against upstream ClipCascade)
+- `UserService.updateUsername`: silent crash on missing user replaced with clear exception
+- `fetchTimeout`: timer leak on successful requests fixed (try/finally)
+- Three implicit global variable declarations (`validResult`, `hashResult`, `wsIsRunning_s`)
+
+**Branding**
+- Server web UI (login, signup, admin pages) fully rebranded to SkyClip
+- All remaining upstream ClipCascade URLs replaced with C0R3DMP/SkyClip
+- macOS PyInstaller spec renamed `SkyClip_macos.spec`; output binary named `SkyClip`
+
+---
+
 ## What's New in v1.0.1
 
 **Security**
@@ -39,7 +62,7 @@ password is generated at startup and printed once to the server log — look for
 - Clearer error messages when login fails or the server is unreachable
 
 **Branding**
-- UI now consistently shows SkyClip throughout (no remaining ClipCascade references)
+- Mobile app UI rebranded to SkyClip (login screen, main screen, notifications)
 
 ---
 
@@ -62,7 +85,8 @@ SkyClip runs entirely on hardware you control. Clipboard content is encrypted be
 ### Security
 | Feature | Details |
 |---------|---------|
-| **Argon2id password hashing** | GPU-resistant, memory-hard KDF — replaces PBKDF2 |
+| **Server auth: BCrypt + SHA3-512** | Login password hashed with SHA3-512 client-side, stored as BCrypt on the server |
+| **Desktop E2E key: Argon2id** | Encryption key derived via Argon2id — GPU-resistant, memory-hard, replaces PBKDF2 |
 | **ECDH Perfect Forward Secrecy** | Ephemeral P-256 session keys; compromising one session exposes nothing else |
 | **System keyring storage** | Credentials stored in OS keychain (Windows Credential Manager / macOS Keychain / libsecret) |
 | **API rate limiting** | Per-username + per-IP lockout, DB-persistent, configurable thresholds |

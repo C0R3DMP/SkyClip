@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.acme</groupId>
 	<artifactId>SkyClip</artifactId>
-	<version>1.0.1</version>
+	<version>1.0.2</version>
 	<name>SkyClip</name>
 	<description>A self-hosted, end-to-end encrypted clipboard sync utility with production-grade security.</description>
 	<url>https://github.com/C0R3DMP/SkyClip</url>

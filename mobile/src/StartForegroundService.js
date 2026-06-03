@@ -24,6 +24,7 @@ import {
   getMultipleDataFromAsyncStorage,
   clearAsyncStorage,
 } from './AsyncStorageManagement';
+import EncryptedStorage from 'react-native-encrypted-storage';
 
 function cleanupClipboardListeners() {
   DeviceEventEmitter.removeAllListeners('SHARED_TEXT');
@@ -99,7 +100,7 @@ module.exports = async (inputData = null) => {
             const encryptedData = await AesGcmCrypto.encrypt(
               plainText,
               false,
-              await getDataFromAsyncStorage('hashed_password'),
+              await EncryptedStorage.getItem('skyclip_hashed_password'),
             );
             return JSON.stringify({
               nonce: Buffer.from(encryptedData.iv, 'hex').toString('base64'),
@@ -116,7 +117,7 @@ module.exports = async (inputData = null) => {
           try {
             const plainText = await AesGcmCrypto.decrypt(
               encryptedData['ciphertext'],
-              await getDataFromAsyncStorage('hashed_password'),
+              await EncryptedStorage.getItem('skyclip_hashed_password'),
               Buffer.from(encryptedData['nonce'], 'base64').toString('hex'),
               Buffer.from(encryptedData['tag'], 'base64').toString('hex'),
               false,

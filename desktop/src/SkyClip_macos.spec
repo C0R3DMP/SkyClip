@@ -23,7 +23,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='ClipCascade',
+    name='SkyClip',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -40,7 +40,7 @@ exe = EXE(
 )
 app = BUNDLE(
     exe,
-    name='ClipCascade.app',
+    name='SkyClip.app',
     icon='../../logo/logo.icns',
     bundle_identifier=None,
     info_plist={

@@ -13,15 +13,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.acme.clipcascade.service.LoginAttemptService;
+import com.acme.clipcascade.utils.IpAddressResolver;
 
 public class LoginAttemptFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginAttemptFilter.class);
 
     private final LoginAttemptService loginAttemptService;
+    private final IpAddressResolver ipAddressResolver;
 
-    public LoginAttemptFilter(LoginAttemptService loginAttemptService) {
+    public LoginAttemptFilter(LoginAttemptService loginAttemptService,
+            IpAddressResolver ipAddressResolver) {
         this.loginAttemptService = loginAttemptService;
+        this.ipAddressResolver = ipAddressResolver;
     }
 
     @Override
@@ -30,7 +34,7 @@ public class LoginAttemptFilter extends OncePerRequestFilter {
 
         if ("POST".equalsIgnoreCase(request.getMethod()) && "/login".equals(request.getServletPath())) {
             String username = request.getParameter("username");
-            String clientIp = getClientIpAddress(request);
+            String clientIp = ipAddressResolver.getUserIpAddress(request);
 
             if (loginAttemptService.isLockedOut(username, clientIp)) {
                 Duration timeRemaining = loginAttemptService.getTimeUntilUnlock(username, clientIp);
@@ -48,17 +52,5 @@ public class LoginAttemptFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
-    }
-
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-        return request.getRemoteAddr();
     }
 }

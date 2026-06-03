@@ -1,5 +1,6 @@
 package com.acme.clipcascade.config;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -277,6 +278,25 @@ public class AppProperties {
     @Value("${CC_DONATIONS_ENABLED:false}")
     private boolean donationsEnabled;
 
+    // Trusted proxy CIDR list for IP resolution (comma-separated; empty = trust no proxies)
+    @Value("${CC_TRUSTED_PROXY_CIDRS:}")
+    private String trustedProxyCidrs;
+
+    // Maximum concurrent sessions per user (default: 5; -1 = unlimited)
+    @Value("${CC_MAX_SESSIONS:5}")
+    private int maxSessions;
+
+    @PostConstruct
+    public void validateConfig() {
+        if (externalBrokerEnabled
+                && ("admin".equals(brokerUsername) || "admin".equals(brokerPassword))) {
+            throw new IllegalStateException(
+                    "CC_EXTERNAL_BROKER_ENABLED=true requires CC_BROKER_USERNAME and " +
+                    "CC_BROKER_PASSWORD to be set to non-default values. " +
+                    "Using 'admin' credentials with an external broker is a security risk.");
+        }
+    }
+
     private long getMessageSizeInBytes() {
         /*
          * Note: Ensure that the same logic is applied in the activemq.xml file as well.
@@ -459,6 +479,14 @@ public class AppProperties {
         return donationsEnabled;
     }
 
+    public String getTrustedProxyCidrs() {
+        return trustedProxyCidrs;
+    }
+
+    public int getMaxSessions() {
+        return maxSessions;
+    }
+
     @Override
     public String toString() {
         return "{\n" +
@@ -492,6 +520,8 @@ public class AppProperties {
                 ",\n p2pStunUrl='" + getP2pStunUrl() + "'" +
                 ",\n maxWsGlobalConnections='" + getMaxWsGlobalConnections() + "'" +
                 ",\n maxWsConnectionsPerUser='" + getMaxWsConnectionsPerUser() + "'" +
+                ",\n trustedProxyCidrs='" + getTrustedProxyCidrs() + "'" +
+                ",\n maxSessions='" + getMaxSessions() + "'" +
                 "\n}";
     }
 

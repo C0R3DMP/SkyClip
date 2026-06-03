@@ -36,7 +36,7 @@ import StartForegroundService from './StartForegroundService';
 import EncryptedStorage from 'react-native-encrypted-storage';
 
 /*
- * These files are part of the ClipCascade project.
+ * These files are part of the SkyClip project.
  *
  * (file) android\app\src\main\java\com\clipcascade\AsyncStorageBridge.kt
  * (file) android\app\src\main\java\com\clipcascade\BootReceiver.kt
@@ -61,7 +61,7 @@ import EncryptedStorage from 'react-native-encrypted-storage';
  */
 
 // App version
-const APP_VERSION = '3.2.0';
+const APP_VERSION = '1.0.2';
 
 // Main App
 export default function App() {
@@ -86,25 +86,25 @@ export default function App() {
   const WEBSOCKET_ENDPOINT_P2P = '/p2psignaling';
   const STUN_URL = '/stun-url';
   const VERSION_URL =
-    'https://raw.githubusercontent.com/Sathvik-Rao/ClipCascade/main/version.json';
-  const GITHUB_URL = 'https://github.com/Sathvik-Rao/ClipCascade';
+    'https://raw.githubusercontent.com/C0R3DMP/SkyClip/main/version.json';
+  const GITHUB_URL = 'https://github.com/C0R3DMP/SkyClip';
   const RELEASE_URL =
-    'https://github.com/Sathvik-Rao/ClipCascade/releases/latest';
+    'https://github.com/C0R3DMP/SkyClip/releases/latest';
   const APP_NAME = 'SkyClip';
   const HELP_URL = `${GITHUB_URL}/blob/main/README.md`;
   const METADATA_URL =
-    'https://raw.githubusercontent.com/Sathvik-Rao/ClipCascade/main/metadata.json';
+    'https://raw.githubusercontent.com/C0R3DMP/SkyClip/main/metadata.json';
 
   // Request permissions for notifications
   PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
 
   const fetchTimeout = async (input, init, timeout_ms = FETCH_TIMEOUT) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout_ms);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout_ms);
       return await fetch(input, { ...init, signal: controller.signal });
-    } catch (e) {
-      throw e;
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
@@ -142,12 +142,20 @@ export default function App() {
     try {
       let data_s = { ...data };
       for (const key in data_s) {
+        if (key === 'hashed_password') continue;
         const value = await getDataFromAsyncStorage(key);
         //value === null means there is no key/data in async storage
         if (value !== null) {
           data_s[key] = value;
         }
       }
+      // Load encryption key from EncryptedStorage (never persisted in plaintext AsyncStorage)
+      try {
+        const storedHash = await EncryptedStorage.getItem('skyclip_hashed_password');
+        if (storedHash !== null && storedHash !== '') {
+          data_s.hashed_password = storedHash;
+        }
+      } catch (_) {}
       return data_s;
     } catch (e) {
       throw e;
@@ -158,6 +166,7 @@ export default function App() {
   const setAsyncStorage = async data_s => {
     try {
       for (const key in data_s) {
+        if (key === 'hashed_password') continue;
         if (data_s[key] === null) {
           data_s[key] = '';
         }
@@ -212,6 +221,22 @@ export default function App() {
         // start polling UI flags
         isMountedRef.current = true;
         pollUIFlags();
+
+        // Migrate v1.0.1 plaintext AsyncStorage keys → EncryptedStorage (one-time, silent)
+        try {
+          const legacyPass = await getDataFromAsyncStorage('password');
+          if (legacyPass !== null && legacyPass !== '') {
+            await EncryptedStorage.setItem('skyclip_password_hash', String(legacyPass));
+            await setDataInAsyncStorage('password', '');
+          }
+        } catch (_) {}
+        try {
+          const legacyHashed = await getDataFromAsyncStorage('hashed_password');
+          if (legacyHashed !== null && legacyHashed !== '') {
+            await EncryptedStorage.setItem('skyclip_hashed_password', String(legacyHashed));
+            await setDataInAsyncStorage('hashed_password', '');
+          }
+        } catch (_) {}
 
         // get data from async storage and initialize data hook
         let data_s = await getAsyncStorage();
@@ -269,7 +294,7 @@ export default function App() {
           } catch (_) {}
           //validate session
           setLoadingPageMessage('Verifying Session...');
-          validResult = await validateSession(data_s);
+          let validResult = await validateSession(data_s);
           setEnableLoadingPage(false);
           if (validResult[0]) {
             //enable websocket page
@@ -288,7 +313,8 @@ export default function App() {
             setEnableLoginPage(true);
             setDataInAsyncStorage('wsIsRunning', 'false');
             if (data_s.save_password === 'true') {
-              const pass = await getDataFromAsyncStorage('password');
+              let pass = null;
+              try { pass = await EncryptedStorage.getItem('skyclip_password_hash'); } catch (_) {}
               if (
                 pass !== null &&
                 pass !== '' &&
@@ -586,7 +612,7 @@ export default function App() {
 
       // Hash the password for encryption
       if (data_s.cipher_enabled === 'true') {
-        hashResult = await hash(data_s, password);
+        let hashResult = await hash(data_s, password);
         data_s = hashResult[2];
         if (!hashResult[0]) {
           return [
@@ -632,7 +658,7 @@ export default function App() {
   const logout = async () => {
     try {
       setWsPageMessage('⌛ Please wait...');
-      await setDataInAsyncStorage('password', '');
+      try { await EncryptedStorage.removeItem('skyclip_password_hash'); } catch (_) {}
       if (wsIsRunning === 'true') {
         await setDataInAsyncStorage('wsIsRunning', 'false');
         setWsIsRunning('false');
@@ -663,6 +689,7 @@ export default function App() {
       // clear cookies if any
       NativeBridgeModule.clearCookies();
       try { await EncryptedStorage.removeItem(SESSION_COOKIE_KEY); } catch (_) {}
+      try { await EncryptedStorage.removeItem('skyclip_hashed_password'); } catch (_) {}
     } catch (error) {
       if (error.name === 'AbortError') {
         setWsPageMessage('❌ Error: Request timed out');
@@ -722,7 +749,7 @@ export default function App() {
         setWsPageMessage('');
         setWsPageP2PMessage('');
         await clearFiles();
-        wsIsRunning_s = wsIsRunning === 'true' ? 'false' : 'true'; // toggle
+        let wsIsRunning_s = wsIsRunning === 'true' ? 'false' : 'true'; // toggle
         await setDataInAsyncStorage('wsForegroundServiceTerminated', 'false');
         await setDataInAsyncStorage('wsIsRunning', wsIsRunning_s);
         if (wsIsRunning_s === 'true') {
@@ -837,6 +864,7 @@ export default function App() {
         if (loginResult[1] === 'Incorrect username or password.') {
           setPassword('');
           try { await EncryptedStorage.removeItem(SESSION_COOKIE_KEY); } catch (_) {}
+          try { await EncryptedStorage.removeItem('skyclip_password_hash'); } catch (_) {}
         }
         setLoginStatusMessage(['❌ ', loginResult[1]].join(''));
       } else {
@@ -847,16 +875,21 @@ export default function App() {
           NativeBridgeModule.stopWorkManager();
         }
 
-        // Save password in async storage
+        // Save password hash to EncryptedStorage (S-02)
         if (data_s.save_password === 'true') {
-          await setDataInAsyncStorage('password', password_s);
+          try { await EncryptedStorage.setItem('skyclip_password_hash', password_s); } catch (_) {}
         }
         // Remove password from memory
         setPassword('');
         password_s = '';
 
-        // Save data in async storage
+        // Save data to AsyncStorage (hashed_password excluded — written to EncryptedStorage below)
         await setAsyncStorage(data_s);
+
+        // Save encryption key to EncryptedStorage (S-04)
+        if (data_s.cipher_enabled === 'true' && data_s.hashed_password) {
+          try { await EncryptedStorage.setItem('skyclip_hashed_password', data_s.hashed_password); } catch (_) {}
+        }
 
         // Persist session cookie (hardware-backed EncryptedStorage) — never the password
         try {

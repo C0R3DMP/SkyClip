@@ -43,13 +43,16 @@ public class BruteForceProtectionService {
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper;
     private final Logger logger;
+    private final IpAddressResolver ipAddressResolver;
 
     public BruteForceProtectionService(
             @Nullable CacheManager trackerCacheManager,
             AppProperties appProperties,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            IpAddressResolver ipAddressResolver) {
 
         this.appProperties = appProperties;
+        this.ipAddressResolver = ipAddressResolver;
 
         this.objectMapper = objectMapper;
         logger = (Logger) LoggerFactory.getLogger(BruteForceProtectionService.class);
@@ -70,7 +73,7 @@ public class BruteForceProtectionService {
         }
 
         // get the current(active) user ip address
-        String activeIp = IpAddressResolver.getUserIpAddress();
+        String activeIp = ipAddressResolver.getUserIpAddress();
 
         ReentrantLock lock = getUserLock(username);
         lock.lock(); // acquire the lock for specific username
@@ -128,7 +131,7 @@ public class BruteForceProtectionService {
         }
 
         // get the current(active) user ip address
-        String activeIp = IpAddressResolver.getUserIpAddress();
+        String activeIp = ipAddressResolver.getUserIpAddress();
 
         ReentrantLock lock = getUserLock(username);
         lock.lock(); // acquire the lock for specific username

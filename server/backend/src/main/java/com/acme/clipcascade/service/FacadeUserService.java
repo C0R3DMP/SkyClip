@@ -25,15 +25,18 @@ public class FacadeUserService {
     private final UserService userService;
     private final UserInfoService userInfoService;
     private final AppProperties appProperties;
+    private final IpAddressResolver ipAddressResolver;
 
     public FacadeUserService(
             UserService userService,
             UserInfoService userInfoService,
-            AppProperties appProperties) {
+            AppProperties appProperties,
+            IpAddressResolver ipAddressResolver) {
 
         this.userService = userService;
         this.userInfoService = userInfoService;
         this.appProperties = appProperties;
+        this.ipAddressResolver = ipAddressResolver;
     }
 
     public void insertDefaultAdminUserIfEmpty() {
@@ -152,7 +155,7 @@ public class FacadeUserService {
     public UserInfo setLoginDetails(String username) {
         return userInfoService.setLoginDetails(
                 username,
-                IpAddressResolver.getUserIpAddress(),
+                ipAddressResolver.getUserIpAddress(),
                 TimeUtility.getCurrentTimeInSeconds(),
                 0,
                 null);

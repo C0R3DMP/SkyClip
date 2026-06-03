@@ -2,6 +2,7 @@ package com.acme.clipcascade.service;
 
 import java.security.MessageDigest;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -101,7 +102,8 @@ public class UserService {
             String oldUsername,
             String newUsername) {
 
-        Users oldUser = userRepo.findById(oldUsername).get();
+        Users oldUser = userRepo.findById(oldUsername)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + oldUsername));
         Users newUser = new Users(
                 newUsername,
                 oldUser.getPassword(),

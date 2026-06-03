@@ -10,14 +10,18 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 
 import com.acme.clipcascade.service.LoginAttemptService;
+import com.acme.clipcascade.utils.IpAddressResolver;
 
 public class LoginAttemptFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
     private final LoginAttemptService loginAttemptService;
+    private final IpAddressResolver ipAddressResolver;
 
-    public LoginAttemptFailureHandler(LoginAttemptService loginAttemptService) {
+    public LoginAttemptFailureHandler(LoginAttemptService loginAttemptService,
+            IpAddressResolver ipAddressResolver) {
         super("/login?error");
         this.loginAttemptService = loginAttemptService;
+        this.ipAddressResolver = ipAddressResolver;
     }
 
     @Override
@@ -25,23 +29,11 @@ public class LoginAttemptFailureHandler extends SimpleUrlAuthenticationFailureHa
             AuthenticationException exception) throws IOException, ServletException {
 
         String username = request.getParameter("username");
-        String clientIp = getClientIp(request);
+        String clientIp = ipAddressResolver.getUserIpAddress(request);
         if (username != null && !username.isEmpty()) {
             loginAttemptService.recordFailure(username, clientIp);
         }
 
         super.onAuthenticationFailure(request, response, exception);
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-        return request.getRemoteAddr();
     }
 }
