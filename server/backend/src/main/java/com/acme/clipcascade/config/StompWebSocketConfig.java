@@ -4,9 +4,16 @@ import org.springframework.lang.NonNull;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -66,6 +73,44 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     .setClientLogin(appProperties.getBrokerUsername()) // <- client username
                     .setClientPasscode(appProperties.getBrokerPassword()); // <- client password
         }
+    }
+
+    /**
+     * Restrict what authenticated clients may do over the STOMP connection.
+     *
+     * Without this, a client could SUBSCRIBE directly to the raw broker
+     * destination (e.g. "/queue/**") and receive messages routed to other
+     * users' session-scoped queues. By forcing subscriptions through the
+     * "/user/**" user-destination prefix, Spring resolves each subscription to
+     * the subscriber's own session, preventing cross-user access. Sends are
+     * restricted to the "/app/**" application prefix so clients cannot publish
+     * straight onto the broker.
+     */
+    @Override
+    public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
+        registration.interceptors(new ChannelInterceptor() {
+            @Override
+            public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
+                StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
+                StompCommand command = accessor.getCommand();
+
+                if (StompCommand.SUBSCRIBE.equals(command)) {
+                    String destination = accessor.getDestination();
+                    if (destination == null || !destination.startsWith("/user/")) {
+                        throw new AccessDeniedException(
+                                "Subscription destination not permitted");
+                    }
+                } else if (StompCommand.SEND.equals(command)) {
+                    String destination = accessor.getDestination();
+                    if (destination == null || !destination.startsWith("/app/")) {
+                        throw new AccessDeniedException(
+                                "Send destination not permitted");
+                    }
+                }
+
+                return message;
+            }
+        });
     }
 
     @Override

@@ -9,6 +9,7 @@ from cli.echo import Echo
 from cli.info import CustomDialog
 from core.config import Config
 from core.constants import *
+from utils.path_safety import safe_download_filename
 from itertools import count
 
 
@@ -337,9 +338,12 @@ class TaskbarPanel:
             CustomDialog(
                 f"Saving files to: {target_directory}", msg_type="info"
             ).mainloop()
-            # Save each file to the chosen directory
+            # Save each file to the chosen directory.
+            # Filenames come from the (untrusted) remote payload, so sanitize
+            # them to a safe basename to prevent path traversal / arbitrary write.
             for filename, file_obj in files.items():
-                file_path = os.path.join(target_directory, filename)
+                safe_name = safe_download_filename(filename)
+                file_path = os.path.join(target_directory, safe_name)
                 with open(file_path, "wb") as f:
                     f.write(file_obj.getvalue())
                 logging.debug(f"Saved: {file_path}")
