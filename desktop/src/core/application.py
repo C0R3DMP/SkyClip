@@ -182,18 +182,16 @@ class Application:
                         self.config.data["server_url"], WEBSOCKET_ENDPOINT
                     )
 
-                # Perform ECDH handshake for Perfect Forward Secrecy (PFS)
-                try:
-                    session_key = self.request_manager.perform_ecdh_handshake()
-                    self.cipher_manager.set_session_key(session_key)
-                    logging.info("ECDH handshake successful, session key set")
-                except RuntimeError as e:
-                    logging.error(f"ECDH handshake failed: {e}")
-                    CustomDialog(
-                        f"Key exchange failed: {e}",
-                        msg_type="error",
-                    ).mainloop()
-                    continue
+                # In-transit ECDH (PFS) is intentionally NOT performed here.
+                # It is not implemented end-to-end: the server never bridges
+                # per-session keys between devices (EcdhSessionStore.getSessionKey
+                # is never called) and the mobile client does not perform the
+                # handshake at all. Performing it would (a) fail the connection on
+                # the CSRF-protected /api/ecdh/handshake endpoint and (b) even if
+                # it succeeded, make transit-encrypted messages undecryptable
+                # across devices. Until ECDH is implemented end-to-end, clients
+                # rely on the interoperable at-rest master-key encryption
+                # (no session key is set, so send()/_receive() use the master key).
 
                 ws_conn_successful, msg = self._get_ws_manager().connect()
                 if ws_conn_successful:
@@ -210,15 +208,12 @@ class Application:
                             )
                             if not success:
                                 logging.warning("Password not stored in keyring, falling back to plaintext")
-                        # Check if upgrade from PBKDF2 to Argon2id is needed
-                        if self.cipher_manager.needs_rehash():
-                            logging.info("Upgrading password hash from PBKDF2 to Argon2id...")
-                            self.config.data["algorithm"] = "argon2id"
-                            CustomDialog(
-                                "Password hash upgraded to Argon2id for improved security.",
-                                msg_type="info",
-                                timeout=3000,
-                            ).mainloop()
+                        # NOTE: We intentionally do NOT auto-upgrade PBKDF2 ->
+                        # Argon2id here. That silent switch changes the derived
+                        # master key and would break sync with the mobile client
+                        # (PBKDF2-only) and with desktops still on PBKDF2.
+                        # Switching KDF must be an explicit, coordinated choice
+                        # across all devices in a sync group.
                     if not self.config.data["save_password"]:
                         self.config.data["password"] = ""
                     if display_login_success_dialog:
