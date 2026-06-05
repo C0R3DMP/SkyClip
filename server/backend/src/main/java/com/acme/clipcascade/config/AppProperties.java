@@ -189,16 +189,6 @@ public class AppProperties {
     private String serverDbUsername;
 
     /*
-     * Server database host (default: QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky)
-     * note: Ensure configuration is included in the application.properties file as
-     * well.
-     * 
-     * <file password> and <user password> are for h2 file database
-     */
-    @Value("${CC_SERVER_DB_PASSWORD:QjuGlhE3uwylBBANMkX1 o2MdEoFgbU5XkFvTftky}")
-    private String serverDbPassword;
-
-    /*
      * Server database URL (default:
      * jdbc:h2:file:./database/clipcascade;CIPHER=AES;MODE=PostgreSQL)
      * note: Ensure configuration is included in the application.properties file as
@@ -425,10 +415,6 @@ public class AppProperties {
 
     public String getServerDbUsername() {
         return serverDbUsername;
-    }
-
-    public String getServerDbPassword() {
-        return serverDbPassword;
     }
 
     public String getServerDbUrl() {
