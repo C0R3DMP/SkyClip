@@ -34,3 +34,6 @@ build/
 
 ### Exclude database folder ###
 database/
+
+### Runtime logs ###
+logs/
