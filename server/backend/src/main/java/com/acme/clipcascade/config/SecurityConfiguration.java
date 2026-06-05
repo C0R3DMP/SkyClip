@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import com.acme.clipcascade.service.FacadeUserService;
 import com.acme.clipcascade.service.LoginAttemptService;
@@ -96,6 +97,11 @@ public class SecurityConfiguration {
 										"frame-ancestors 'none'"
 								)
 						)
+						.httpStrictTransportSecurity(hsts -> hsts
+								.includeSubDomains(true)
+								.maxAgeInSeconds(31536000))
+						.referrerPolicy(referrer -> referrer
+								.policy(ReferrerPolicy.SAME_ORIGIN))
 				)
 				.sessionManagement(session -> session
 						.sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
