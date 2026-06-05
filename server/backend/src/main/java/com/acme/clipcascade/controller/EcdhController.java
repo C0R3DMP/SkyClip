@@ -14,15 +14,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * REST endpoint for Perfect Forward Secrecy (ECDH) handshake.
+ * ECDH key-exchange endpoint. Derives a shared session key and stores it
+ * per HTTP session.
  *
- * Flow:
- * 1. Client generates keypair, sends public key
- * 2. Server generates keypair, computes shared secret with client's public key
- * 3. Server derives session key, STORES it, sends its public key back
- * 4. Client receives server's public key, computes same shared secret
- * 5. Both derive identical session key for in-transit encryption
- * 6. WebSocket handler retrieves stored key for message decryption
+ * NOTE: transit encryption is incomplete — the derived key is stored but
+ * the WebSocket message handler does not yet retrieve or apply it.
+ * E2E confidentiality currently relies on the shared master key (at-rest).
+ * Full device-to-device in-transit encryption is planned for a future release.
  */
 @Slf4j
 @RestController
