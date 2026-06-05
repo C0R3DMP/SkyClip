@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw
 from core.config import Config
 from gui.info import CustomDialog
 from core.constants import *
+from utils.path_safety import safe_download_filename
 
 if PLATFORM != WINDOWS:
     import subprocess
@@ -366,9 +367,12 @@ class TaskbarPanel:
                     timeout=5000,
                 ).mainloop()
 
-            # Save each file to the chosen directory
+            # Save each file to the chosen directory.
+            # Filenames come from the (untrusted) remote payload, so sanitize
+            # them to a safe basename to prevent path traversal / arbitrary write.
             for filename, file_obj in files.items():
-                file_path = os.path.join(target_directory, filename)
+                safe_name = safe_download_filename(filename)
+                file_path = os.path.join(target_directory, safe_name)
                 with open(file_path, "wb") as f:
                     f.write(file_obj.getvalue())
                 logging.debug(f"Saved: {file_path}")

@@ -91,9 +91,11 @@ public class EcdhController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("ECDH: Handshake failed: {}", e.getMessage());
+            // Log full detail server-side; return a generic message so internal
+            // exception text is never leaked to the client.
+            log.error("ECDH: Handshake failed", e);
             return ResponseEntity.status(400).body(
-                Map.of("error", "ECDH handshake failed: " + e.getMessage())
+                Map.of("error", "ECDH handshake failed")
             );
         }
     }

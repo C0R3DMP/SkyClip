@@ -237,6 +237,55 @@ If critical issues found:
 
 ---
 
+## Deployment & Encryption Hardening Notes
+
+Operational recommendations for self-hosters. These do **not** change default
+behavior; they help you harden a deployment.
+
+### Encryption key derivation — all devices in a sync group must match
+
+Each device derives the end-to-end encryption key locally from
+`username + password + custom_salt` via a key-derivation function (KDF). For
+clipboard sync to work, **every device in a sync group must use the same KDF
+and the same salt**:
+
+- **Default KDF: PBKDF2-HMAC-SHA256** (664,937 iterations). This is compatible
+  across the desktop and mobile clients out of the box.
+- The desktop also supports **Argon2id** (stronger, memory-hard) as an explicit
+  opt-in via the `algorithm` config field. **Argon2id keys are not compatible
+  with PBKDF2 keys** — only enable it if *every* device in the group is a
+  desktop set to Argon2id. (The mobile client is PBKDF2-only.)
+- The custom **salt** is empty by default. The effective KDF salt always
+  includes your username and password, but if you sync sensitive data across
+  **multiple servers**, set a shared non-empty custom salt on all devices to
+  avoid cross-server key correlation (same username + password would otherwise
+  derive the same key on different servers).
+
+### Restrict allowed origins (`CC_ALLOWED_ORIGINS`)
+
+Defaults to `*` (any origin). Native desktop/mobile clients send no `Origin`
+header and are unaffected, but if the server is reachable from browsers, set
+`CC_ALLOWED_ORIGINS` to your exact origin (e.g. `https://clip.example.com`) so
+arbitrary websites cannot open WebSocket connections.
+
+### Session timeout (`CC_SESSION_TIMEOUT`)
+
+Defaults to a very long value (~1 year) so sync clients stay logged in. If a
+stolen session cookie is a concern for your threat model, lower it
+(e.g. `CC_SESSION_TIMEOUT=480m` for 8 hours).
+
+### HTTPS and HSTS
+
+Always run SkyClip behind TLS. The server sends a `Strict-Transport-Security`
+header, but Spring only emits it on requests it sees as **secure**. If you
+terminate TLS at a reverse proxy, the app receives plain HTTP and will not emit
+HSTS unless it is made aware the request is secure (terminate TLS at the app, or
+configure the app/proxy so the request is treated as secure).
+`Referrer-Policy: same-origin`, `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY`, and a Content-Security-Policy are always sent.
+
+---
+
 ## Questions & Support
 
 - **Security concern?** Report to: [security contact]

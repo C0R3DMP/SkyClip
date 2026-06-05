@@ -14,7 +14,12 @@ class Config:
             "websocket_url": "",
             "username": "",
             "hashed_password": None,
-            "algorithm": "argon2id",
+            # Key-derivation algorithm for the at-rest master key.
+            # Default is "pbkdf2" so a fresh desktop install is key-compatible
+            # with the mobile client (mobile is PBKDF2-only). Desktop-only sync
+            # groups may set this to "argon2id" for a stronger KDF — but ALL
+            # devices in a sync group must use the same algorithm/params.
+            "algorithm": "pbkdf2",
             "keyring_enabled": True,
             "cookie": None,
             "maxsize": None,
