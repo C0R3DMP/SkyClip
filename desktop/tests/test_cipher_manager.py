@@ -221,8 +221,9 @@ class TestCipherManagerConfig(unittest.TestCase):
 
         self.assertIn("algorithm", config.data)
         self.assertEqual(
-            config.data["algorithm"], "argon2id",
-            "New config should default to Argon2id"
+            config.data["algorithm"], "pbkdf2",
+            "New config should default to PBKDF2 so a fresh desktop install "
+            "is key-compatible with the mobile client (mobile is PBKDF2-only)"
         )
 
     def test_config_save_load_preserves_algorithm(self):

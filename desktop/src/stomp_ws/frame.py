@@ -35,14 +35,21 @@ class Frame:
 
         # get all headers
         i = 1
-        while lines[i] != "":
+        while i < len(lines) and lines[i] != "":
+            # a line without ":" is not a header (e.g. a frame terminator on a
+            # malformed/truncated frame) — treat it as end of headers
+            if ":" not in lines[i]:
+                break
             # get key, value from raw header
             (key, value) = lines[i].split(":", 1)
             headers[key] = value
             i += 1
 
         # set body to None if there is no body
-        body = None if lines[i + 1] == Byte["NULL"] else lines[i + 1][:-1]
+        if i + 1 < len(lines):
+            body = None if lines[i + 1] == Byte["NULL"] else lines[i + 1][:-1]
+        else:
+            body = None
 
         return Frame(command, headers, body)
 

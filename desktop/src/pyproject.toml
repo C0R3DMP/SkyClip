@@ -3,9 +3,9 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ClipCascade"
-version = "3.2.0"
-description = "ClipCascade is a lightweight utility that automatically syncs the clipboard across devices, no key press required."
+name = "SkyClip"
+version = "1.0.3"
+description = "SkyClip is a lightweight utility that automatically syncs the clipboard across devices, no key press required."
 authors = [{ name = "Sathvik Rao", email = "sathvik.poladi@gmail.com" }]
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
@@ -35,6 +35,8 @@ dependencies = [
     "Pillow>=10.4.0",
     "plyer==2.1.0",
     "pycryptodome==3.20.0",
+    "argon2-cffi==23.1.0",
+    "keyring==25.1.0",
     "pystray==0.19.5",
     "Requests==2.32.3",
     "websocket_client==1.8.0",
@@ -51,7 +53,7 @@ dependencies = [
 ]
 
 [project.scripts]
-clipcascade = "main:main"
+skyclip = "main:main"
 
 [tool.setuptools]
 py-modules = ["main"]

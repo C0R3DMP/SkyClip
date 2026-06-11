@@ -527,7 +527,7 @@ module.exports = async (inputData = null) => {
                       clipContent,
                     );
                   } else if (type_ === 'files') {
-                    temp = {};
+                    let temp = {};
                     const file_paths = clipContent
                       .split(',')
                       .filter(item => item.trim() !== '');
@@ -872,7 +872,7 @@ module.exports = async (inputData = null) => {
                     clipContent,
                   );
                 } else if (type_ === 'files') {
-                  temp = {};
+                  let temp = {};
                   const file_paths = clipContent
                     .split(',')
                     .filter(item => item.trim() !== '');

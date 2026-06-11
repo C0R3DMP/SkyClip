@@ -61,7 +61,7 @@ import EncryptedStorage from 'react-native-encrypted-storage';
  */
 
 // App version
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 
 // Main App
 export default function App() {
