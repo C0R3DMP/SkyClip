@@ -389,14 +389,17 @@ public class SkyClipController {
 
     @GetMapping("/admin/bfa-snapshot-file")
     @ResponseBody
-    public byte[] getBfaSnapshotFile(
+    public ResponseEntity<byte[]> getBfaSnapshotFile(
             @AuthenticationPrincipal UserPrincipal userPrincipal) throws JsonProcessingException {
 
+        // Returning null here used to answer a non-admin with 200 OK and an
+        // empty body, which reads as "there is no data" rather than "you are
+        // not allowed". Every other /admin endpoint rejects explicitly.
         if (!userPrincipal.isAdmin()) {
-            return null;
+            return ResponseEntity.status(403).build();
         }
 
-        return bruteForceProtectionService.getTrackerFile();
+        return ResponseEntity.ok(bruteForceProtectionService.getTrackerFile());
     }
 
     @GetMapping("/admin/bfa-snapshot")

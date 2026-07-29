@@ -270,7 +270,16 @@ public class P2PWebSocketHandler extends AbstractWebSocketHandler {
     protected void handleBinaryMessage(@NonNull WebSocketSession session, @NonNull BinaryMessage message)
             throws Exception {
 
-        handleTextMessage(session, new TextMessage(new String(message.getPayload().array(), StandardCharsets.UTF_8)));
+        // ByteBuffer.array() exposes the whole backing array, ignoring position
+        // and limit — for any buffer that is sliced, has an arrayOffset, or is
+        // not exactly message-sized, that decodes trailing garbage (and throws
+        // outright on a read-only or direct buffer). Read only the remaining
+        // bytes instead.
+        java.nio.ByteBuffer payload = message.getPayload();
+        byte[] bytes = new byte[payload.remaining()];
+        payload.duplicate().get(bytes);
+
+        handleTextMessage(session, new TextMessage(new String(bytes, StandardCharsets.UTF_8)));
     }
 
     @Override

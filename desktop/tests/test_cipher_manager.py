@@ -3,6 +3,7 @@ Unit tests for CipherManager with Argon2id password hashing.
 Tests backward compatibility with PBKDF2 and new Argon2id upgrade path.
 """
 
+import builtins
 import unittest
 import sys
 import os
@@ -180,14 +181,46 @@ class TestCipherManagerArgon2id(unittest.TestCase):
             "Encrypted plaintext should decrypt to original"
         )
 
-    @patch('utils.cipher_manager.logging.warning')
-    def test_argon2_import_error_fallback_logs_warning(self, mock_logging):
-        """Test that missing argon2-cffi library triggers warning"""
-        # This test would require actually uninstalling argon2-cffi
-        # For now, we verify the structure is correct
-        self.assertTrue(
-            hasattr(self.cipher_manager, '_argon2_raw'),
-            "CipherManager should have _argon2_raw method"
+    def test_missing_argon2_raises_instead_of_deriving_a_different_key(self):
+        """
+        With algorithm="argon2id" and argon2-cffi unavailable, key derivation
+        must fail loudly.
+
+        The old behaviour silently fell back to PBKDF2, which yields a
+        *different* 32-byte key. That is worse than an error: the clipboard
+        gets encrypted under a key no other device can reproduce, previously
+        synced data stops decrypting, and the config still advertises
+        algorithm="argon2id" so nothing signals the divergence.
+        """
+        self.config.data["algorithm"] = "argon2id"
+
+        real_import = builtins.__import__
+
+        def blocked_import(name, *args, **kwargs):
+            if name.startswith("argon2"):
+                raise ImportError("No module named 'argon2'")
+            return real_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", side_effect=blocked_import):
+            with self.assertRaises(RuntimeError) as ctx:
+                self.cipher_manager.hash_password("testpass")
+
+        self.assertIn("argon2-cffi", str(ctx.exception))
+
+    def test_argon2id_and_pbkdf2_derive_different_keys(self):
+        """
+        Guards the reason the fallback above must not be silent: the two KDFs
+        genuinely disagree, so substituting one for the other breaks sync.
+        """
+        self.config.data["algorithm"] = "argon2id"
+        argon_key = self.cipher_manager.hash_password("testpass")
+
+        self.config.data["algorithm"] = "pbkdf2"
+        pbkdf2_key = self.cipher_manager.hash_password("testpass")
+
+        self.assertNotEqual(
+            argon_key, pbkdf2_key,
+            "Argon2id and PBKDF2 must not be treated as interchangeable"
         )
 
     def test_hash_password_selects_correct_algorithm(self):
@@ -216,14 +249,70 @@ class TestCipherManagerConfig(unittest.TestCase):
             shutil.rmtree(self.temp_dir)
 
     def test_algorithm_field_initialized(self):
-        """Test that algorithm field is initialized in new config"""
+        """
+        A fresh config must default to PBKDF2.
+
+        Argon2id is stronger, but the mobile client is PBKDF2-only and every
+        device in a sync group has to derive the same key. Defaulting to
+        Argon2id would silently break desktop<->mobile sync, so it stays an
+        explicit, coordinated opt-in (see SECURITY.md).
+        """
         config = Config(file_name=self.config_file)
 
         self.assertIn("algorithm", config.data)
         self.assertEqual(
-            config.data["algorithm"], "argon2id",
-            "New config should default to Argon2id"
+            config.data["algorithm"], "pbkdf2",
+            "New config must default to PBKDF2 for mobile key compatibility"
         )
+
+    def test_save_persists_key_when_cipher_disabled(self):
+        """
+        save() must serialize a bytes hashed_password regardless of
+        cipher_enabled.
+
+        save() used to Base64-encode the key only when cipher_enabled was
+        truthy, while load() decoded unconditionally. Turning encryption off
+        while a key was still in memory therefore left raw bytes in the dict,
+        json.dump raised TypeError, and the except branch swallowed it — so the
+        DATA file silently kept the *old* settings and nothing the user changed
+        was ever written.
+        """
+        config = Config(file_name=self.config_file)
+        config.data["username"] = "testuser"
+        config.data["cipher_enabled"] = False
+        config.data["hashed_password"] = b"\x01" * 32
+        config.save()
+
+        self.assertTrue(
+            os.path.exists(self.config_file),
+            "save() must write the DATA file even with cipher_enabled=False"
+        )
+
+        with open(self.config_file) as f:
+            on_disk = json.load(f)
+        self.assertEqual(on_disk["username"], "testuser")
+        self.assertEqual(on_disk["cipher_enabled"], False)
+
+        config2 = Config(file_name=self.config_file)
+        config2.load()
+        self.assertEqual(
+            config2.data["hashed_password"], b"\x01" * 32,
+            "Key must survive a save/load round-trip unchanged"
+        )
+
+    def test_save_load_round_trip_is_idempotent(self):
+        """Saving an already-loaded config must not double-encode the key."""
+        config = Config(file_name=self.config_file)
+        config.data["hashed_password"] = b"\x02" * 32
+        config.save()
+
+        config2 = Config(file_name=self.config_file)
+        config2.load()
+        config2.save()
+
+        config3 = Config(file_name=self.config_file)
+        config3.load()
+        self.assertEqual(config3.data["hashed_password"], b"\x02" * 32)
 
     def test_config_save_load_preserves_algorithm(self):
         """Test that algorithm field is saved and loaded correctly"""

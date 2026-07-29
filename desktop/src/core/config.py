@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import os
 import re
 from core.constants import *
@@ -44,7 +45,15 @@ class Config:
         """
         try:
             temp = self.data.copy()
-            if self.data.get("cipher_enabled") and self.data.get("hashed_password"):
+            # hashed_password is raw bytes in memory and must always be
+            # Base64-encoded before it can be serialized. Gating this on
+            # cipher_enabled used to leave a bytes value in the dict whenever
+            # encryption was switched off while a key was still loaded, which
+            # made json.dump raise TypeError and silently abandoned the whole
+            # save — the DATA file then kept stale settings forever.
+            # load() decodes unconditionally, so save() must encode
+            # unconditionally to stay symmetric.
+            if isinstance(temp.get("hashed_password"), (bytes, bytearray)):
                 temp["hashed_password"] = base64.b64encode(
                     temp["hashed_password"]
                 ).decode("utf-8")
@@ -63,7 +72,9 @@ class Config:
                     file_data = json.load(f)
                     self.data.update(file_data)
                 # Decode hashed_password if present
-                if self.data.get("hashed_password"):
+                if isinstance(self.data.get("hashed_password"), str) and self.data[
+                    "hashed_password"
+                ]:
                     self.data["hashed_password"] = base64.b64decode(
                         self.data["hashed_password"]
                     )
