@@ -32,6 +32,7 @@ import com.acme.clipcascade.service.BruteForceProtectionService;
 import com.acme.clipcascade.service.CaptchaService;
 import com.acme.clipcascade.service.DonationService;
 import com.acme.clipcascade.service.FacadeUserService;
+import com.acme.clipcascade.service.LoginAttemptService;
 import com.acme.clipcascade.service.SessionService;
 import com.acme.clipcascade.service.UserInfoService;
 import com.acme.clipcascade.service.UserService;
@@ -67,6 +68,7 @@ public class SkyClipController {
     private final BruteForceProtectionService bruteForceProtectionService;
     private final WebSocketStatsService webSocketStatsService;
     private final DonationService donationService;
+    private final LoginAttemptService loginAttemptService;
 
     public SkyClipController(
             AppProperties appProperties,
@@ -78,7 +80,8 @@ public class SkyClipController {
             SessionService sessionService,
             BruteForceProtectionService bruteForceProtectionService,
             WebSocketStatsService webSocketStatsService,
-            DonationService donationService) {
+            DonationService donationService,
+            LoginAttemptService loginAttemptService) {
 
         this.appProperties = appProperties;
         this.facadeUserService = facadeUserService;
@@ -90,6 +93,7 @@ public class SkyClipController {
         this.bruteForceProtectionService = bruteForceProtectionService;
         this.webSocketStatsService = webSocketStatsService;
         this.donationService = donationService;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @PostConstruct
@@ -594,13 +598,26 @@ public class SkyClipController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody Map<String, String> payload) {
 
+        // Actual login-attempt rate limiting is enforced by LoginAttemptFilter /
+        // LoginAttemptService (DB-backed, wired in SecurityConfiguration) — that
+        // is what returns HTTP 429 and is the only thing that can really lock a
+        // user out. bruteForceProtectionService's own tracker is never populated
+        // (nothing calls recordAndValidateAttempt), so clearing only that left
+        // this button doing nothing for a genuinely locked-out user, while always
+        // reporting "Invalid user or operation failed" regardless of outcome.
+        // Both are cleared now; success reflects the input being usable rather
+        // than the dead tracker's (always-empty) lookup.
         return ResponseEntityUtil.conditionalExecuteOrError(
                 userPrincipal.isAdmin(),
-                () -> ResponseEntityUtil.buildResponse(
-                        bruteForceProtectionService
-                                .unlockUser(payload.get("username")) != null,
-                        "User unlocked successfully",
-                        "Invalid user or operation failed"),
+                () -> {
+                    String username = payload.get("username");
+                    bruteForceProtectionService.unlockUser(username);
+                    loginAttemptService.manualUnlockByUsername(username);
+                    return ResponseEntityUtil.buildResponse(
+                            username != null && !username.isBlank(),
+                            "User unlocked successfully",
+                            "Invalid user or operation failed");
+                },
                 "Forbidden");
     }
 

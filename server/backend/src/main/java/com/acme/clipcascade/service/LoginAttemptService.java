@@ -81,6 +81,19 @@ public class LoginAttemptService {
                 username, ipAddress, deletedCount);
     }
 
+    /**
+     * Clear every recorded failure for a username, regardless of which IP it
+     * came from. isLockedOut() locks a username out globally (failures across
+     * ANY ip) as well as per-ip, so an admin-facing "unlock this user" action
+     * that only has a username to work with — no ip — needs to clear by
+     * username alone, not username+ip.
+     */
+    public int manualUnlockByUsername(String username) {
+        int deletedCount = loginAttemptRepo.deleteByUsername(username);
+        logger.warn("Admin manual unlock for username='{}'. Deleted {} attempts.", username, deletedCount);
+        return deletedCount;
+    }
+
     public int manualUnlockByIp(String ipAddress) {
         int deletedCount = loginAttemptRepo.deleteByIpAddress(ipAddress);
         logger.warn("Admin manual unlock for ip='{}'. Deleted {} attempts.", ipAddress, deletedCount);
