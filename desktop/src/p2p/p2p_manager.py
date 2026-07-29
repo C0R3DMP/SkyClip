@@ -843,12 +843,37 @@ class P2PManager(WSInterface):
         Returns:
             list[str]: A list of string fragments.
         """
-        # Encode the string to bytes to accurately split by byte size
+        # Encode the string to bytes to accurately split by byte size.
+        #
+        # A raw `s_bytes[i:i+fragment_size]` cut can land in the middle of a
+        # multi-byte UTF-8 character (anything non-ASCII: Arabic, emoji, CJK,
+        # accented Latin...). decode(errors="ignore") then silently drops the
+        # orphaned bytes on both sides of the cut, corrupting the clipboard
+        # text with no error surfaced anywhere. This only shows up when
+        # cipher_enabled is False (encrypted payloads are base64/JSON, i.e.
+        # pure ASCII, so a byte cut is always a character cut). Back each
+        # fragment boundary off to the last complete character instead, so
+        # every fragment decodes exactly and nothing is ever lost.
         s_bytes = s.encode("utf-8")
-        fragments = [
-            s_bytes[i : i + fragment_size].decode("utf-8", errors="ignore")
-            for i in range(0, len(s_bytes), fragment_size)
-        ]
+        n = len(s_bytes)
+        fragments = []
+        start = 0
+        while start < n:
+            end = min(start + fragment_size, n)
+            # UTF-8 continuation bytes have the pattern 0b10xxxxxx. If the
+            # byte right after the cut is a continuation byte, the cut split
+            # a multi-byte character — back off until it doesn't. A valid
+            # UTF-8 character is at most 4 bytes, so for the real
+            # fragment_size (15360) this always stops well above `start`.
+            while end > start + 1 and end < n and (s_bytes[end] & 0xC0) == 0x80:
+                end -= 1
+            # fragment_size itself smaller than one character's byte width is
+            # a degenerate caller error, not a real deployment (FRAGMENT_SIZE
+            # is 15360). Guarantee forward progress rather than looping
+            # forever backing off to `start`: emit the raw byte cut for this
+            # one fragment instead of hanging.
+            fragments.append(s_bytes[start:end].decode("utf-8", errors="ignore"))
+            start = end
         return fragments
 
     @staticmethod
