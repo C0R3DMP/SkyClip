@@ -236,8 +236,15 @@ class NativeBridgeModule(reactContext: ReactApplicationContext) : ReactContextBa
                 // Decode the Base64 string to raw bytes
                 val decodedBytes = Base64.decode(base64Data, Base64.DEFAULT)
 
+                // fileName is a JSON map key from a remote clipboard "files"
+                // payload — fully attacker-controlled (the sender, or anyone
+                // able to inject a message, picks it). Reduce it to a safe,
+                // single-component basename before it's ever used, mirroring
+                // desktop's utils/path_safety.safe_download_filename.
+                val safeName = safeFileName(fileName)
+
                 // Get a unique filename so it doesn't collide with existing files.
-                val uniqueName = getUniqueName(docFile, fileName)
+                val uniqueName = getUniqueName(docFile, safeName)
 
                 // Create a file in the chosen directory.
                 val newFile = docFile.createFile(
@@ -259,6 +266,38 @@ class NativeBridgeModule(reactContext: ReactApplicationContext) : ReactContextBa
         } catch (e: Exception) {
             promise.reject("ERROR", "Failed to save files: ${e.message}")
         }
+    }
+
+    /**
+     * Reduce an untrusted filename to a safe, single-component basename.
+     *
+     * DocumentFile.createFile() treats the display name as an opaque string
+     * on the common storage providers rather than a filesystem path, so this
+     * isn't a proven path-traversal vector the way a raw File(dir, name)
+     * write would be (see desktop's equivalent, which does write raw paths
+     * and needs this guard for exactly that reason) — but nothing here
+     * should depend on that provider-specific behavior, and a name like
+     * "../../evil" or one full of control/reserved characters has no
+     * business reaching the SAF layer regardless. Falls back to a generic
+     * name when nothing safe remains; never returns "", ".", or "..".
+     */
+    private fun safeFileName(filename: String): String {
+        val illegalChars = Regex("""[<>:"/\\|?*\x00-\x1f]""")
+        val fallback = "downloaded_file"
+
+        // Keep only the final path component, handling both separators —
+        // defeats "../" traversal and absolute paths from either OS style.
+        var name = filename.replace('\\', '/').substringAfterLast('/')
+
+        // Remove illegal/control characters, then trim surrounding
+        // whitespace and trailing dots/spaces (problematic on Windows).
+        // Leading dots are left alone so legitimate dotfiles survive.
+        name = illegalChars.replace(name, "_").trim().trimEnd('.', ' ')
+
+        if (name.isEmpty() || name == "." || name == "..") {
+            return fallback
+        }
+        return name
     }
 
     /**
