@@ -1060,7 +1060,16 @@ module.exports = async (inputData = null) => {
                 return;
               }
 
-              await clearFiles((expensiveCall = true));
+              // `(expensiveCall = true)` was never keyword-argument syntax —
+              // JS has none — it's an assignment expression to a variable
+              // that doesn't exist in this scope (`expensiveCall` is only a
+              // parameter name inside clearFiles' own definition). In this
+              // ES module (always strict mode) that throws ReferenceError
+              // before clearFiles ever runs, and the throw was swallowed by
+              // this function's own try/catch below — every single inbound
+              // P2P clipboard message was silently dropped before any of it
+              // was processed.
+              await clearFiles(true);
               await resetSendingFragmentId();
 
               let cb = String(message.payload);
