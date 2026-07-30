@@ -1,5 +1,11 @@
 version: '3.8'
 
+# ⚠️ IMPORTANT: Set CC_BROKER_USERNAME and CC_BROKER_PASSWORD in your
+#     environment before starting — the ActiveMQ web console (8161) and
+#     STOMP port (61613) below are published directly to the host.
+#     export CC_BROKER_USERNAME=admin
+#     export CC_BROKER_PASSWORD=your_secure_broker_password
+
 services:
   clipcascade:
     image: sathvikrao/clipcascade:latest
@@ -18,8 +24,8 @@ services:
       - CC_EXTERNAL_BROKER_ENABLED=true
       - CC_BROKER_HOST=activemq
       - CC_BROKER_PORT=61613
-      - CC_BROKER_USERNAME=admin # Should match activemq credentials 
-      - CC_BROKER_PASSWORD=admin # Should match activemq credentials
+      - CC_BROKER_USERNAME=${CC_BROKER_USERNAME:?CC_BROKER_USERNAME must be set} # Should match activemq credentials
+      - CC_BROKER_PASSWORD=${CC_BROKER_PASSWORD:?CC_BROKER_PASSWORD must be set} # Should match activemq credentials
 
   activemq:
     image: apache/activemq-classic:latest
@@ -30,5 +36,12 @@ services:
       # - 61616:61616 # OpenWire Protocol Port
     restart: always
     environment:
-      - ACTIVEMQ_ADMIN_LOGIN=admin
-      - ACTIVEMQ_ADMIN_PASSWORD=admin
+      # Both the web console (8161) and STOMP port (61613) above are
+      # published directly to the host, unlike the postgres container in
+      # docker-compose-multi-users.yml — there's no internal-network
+      # isolation here. "admin"/"admin" on a network-reachable broker is
+      # the same class of issue the README's admin123 advisory covers for
+      # the app's own login; requiring an explicit value here closes it the
+      # same way the main docker-compose.yml already requires CC_DB_PASSWORD.
+      - ACTIVEMQ_ADMIN_LOGIN=${CC_BROKER_USERNAME:?CC_BROKER_USERNAME must be set}
+      - ACTIVEMQ_ADMIN_PASSWORD=${CC_BROKER_PASSWORD:?CC_BROKER_PASSWORD must be set}

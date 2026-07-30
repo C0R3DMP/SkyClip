@@ -87,10 +87,10 @@ SkyClip runs entirely on hardware you control. Clipboard content is encrypted be
 |---------|---------|
 | **Server auth: BCrypt + SHA3-512** | Login password hashed with SHA3-512 client-side, stored as BCrypt on the server |
 | **Desktop E2E key: Argon2id** | Encryption key derived via Argon2id — GPU-resistant, memory-hard, replaces PBKDF2 |
-| **ECDH Perfect Forward Secrecy** | Ephemeral P-256 session keys; compromising one session exposes nothing else |
+| **ECDH key exchange (server-side, dormant)** | The `/api/ecdh/handshake` endpoint and key derivation exist and are correct, but no client performs the handshake and the server never applies the resulting session key to real traffic — Perfect Forward Secrecy is not yet active end-to-end. See [SECURITY.md](SECURITY.md). |
 | **System keyring storage** | Credentials stored in OS keychain (Windows Credential Manager / macOS Keychain / libsecret) |
 | **API rate limiting** | Per-username + per-IP lockout, DB-persistent, configurable thresholds |
-| **PostgreSQL** | Production database with HikariCP connection pooling and Flyway migrations |
+| **PostgreSQL** | Production database with HikariCP connection pooling; schema applied via `schema.sql` on startup |
 
 See [SECURITY.md](SECURITY.md) for full details.
 
@@ -163,9 +163,9 @@ Supported: **Linux** (system tray), **Windows** (system tray).
 ## Architecture
 
 ```
-┌──────────────┐    ECDH handshake    ┌─────────────────────┐
+┌──────────────┐   AES-256-GCM/STOMP  ┌─────────────────────┐
 │ Desktop      │ ─────────────────── │ Spring Boot Server   │
-│ (Python)     │   AES-256-GCM/STOMP │ + PostgreSQL         │
+│ (Python)     │                      │ + PostgreSQL         │
 └──────────────┘                      └─────────────────────┘
                                                │
 ┌──────────────┐    AES-256-GCM/WS    ─────────┘
@@ -174,9 +174,8 @@ Supported: **Linux** (system tray), **Windows** (system tray).
 └──────────────┘
 ```
 
-- **At-rest encryption:** Argon2id-derived master key (per device, never transmitted)
-- **In-transit encryption:** ECDH-derived ephemeral session key (AES-256-GCM, unique per session)
-- **Key agreement:** P-256 ECDH → HKDF(SHA-256) → AES-256-GCM with 128-bit auth tag
+- **At-rest encryption:** Argon2id- or PBKDF2-derived master key (per device, never transmitted) — this is what actually protects clipboard content in transit today; the server only ever relays ciphertext it cannot read.
+- **In-transit key exchange (dormant):** P-256 ECDH → HKDF(SHA-256) → AES-256-GCM session key. The server-side implementation is correct, but no client performs the handshake and the server never applies the derived key to real messages, so it provides no protection yet — see [SECURITY.md](SECURITY.md).
 
 ---
 
