@@ -1,5 +1,8 @@
 version: '3.8'
 
+# ⚠️ IMPORTANT: Set CC_DB_PASSWORD in your environment before starting.
+#     export CC_DB_PASSWORD=your_secure_db_password
+
 services:
   clipcascade:
     image: sathvikrao/clipcascade:latest
@@ -32,8 +35,8 @@ services:
       CC_BFA_TRACKER_CACHE_RAM_PERCENTAGE: 10
       CC_BFA_TRACKER_CACHE_DISK_PERCENTAGE: 40
       CC_SERVER_DB_URL: jdbc:postgresql://postgresdb:5432/clipcascade
-      CC_SERVER_DB_USERNAME: clipcascade # Should match PostgreSQL credentials 
-      CC_SERVER_DB_PASSWORD: NcKME70uZ4EDOOm # Should match PostgreSQL credentials 
+      CC_SERVER_DB_USERNAME: clipcascade # Should match PostgreSQL credentials
+      CC_SERVER_DB_PASSWORD: ${CC_DB_PASSWORD:?CC_DB_PASSWORD must be set} # Should match PostgreSQL credentials
       CC_SERVER_DB_DRIVER: org.postgresql.Driver
       CC_SERVER_DB_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
       CC_SERVER_LOG_HISTORY_MAX_DAYS: 30
@@ -48,7 +51,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: clipcascade
-      POSTGRES_PASSWORD: NcKME70uZ4EDOOm
+      POSTGRES_PASSWORD: ${CC_DB_PASSWORD:?CC_DB_PASSWORD must be set}
       POSTGRES_DB: clipcascade
     networks:
       - internal_network
