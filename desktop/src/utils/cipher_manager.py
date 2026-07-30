@@ -38,37 +38,47 @@ class CipherManager:
         logging.info("Session key cleared")
 
     def _argon2_raw(self, password: str, salt: bytes) -> bytes:
-        """Derive encryption key using Argon2id (raw bytes output)"""
+        """
+        Derive encryption key using Argon2id (raw bytes output).
+
+        If argon2-cffi is missing this raises instead of falling back to
+        PBKDF2. The two KDFs produce *different* keys, so a silent fallback
+        does not "degrade gracefully" — it encrypts the clipboard under a key
+        no other device in the sync group can reproduce, and makes previously
+        synced data undecryptable, all while the config still claims
+        algorithm="argon2id". Failing loudly is the only safe option; the user
+        can install argon2-cffi or set algorithm back to "pbkdf2".
+        """
         try:
             from argon2.low_level import hash_secret_raw, Type
-            return hash_secret_raw(
-                password.encode(),
-                salt,
-                time_cost=3,
-                memory_cost=65540,
-                parallelism=4,
-                hash_len=32,
-                type=Type.ID
+        except ImportError as e:
+            error_msg = (
+                "Config selects algorithm='argon2id' but the argon2-cffi library "
+                "is not installed, so the encryption key cannot be derived. "
+                "Install it with: pip install argon2-cffi==23.1.0 "
+                "(or set \"algorithm\": \"pbkdf2\" in the DATA file — note that "
+                "every device in the sync group must use the same algorithm)."
             )
-        except ImportError:
-            # SECURITY: argon2-cffi missing - visible warning required
-            warning_msg = (
-                "SECURITY WARNING: argon2-cffi library not installed. "
-                "Falling back to weaker PBKDF2 hashing. "
-                "Please install: pip install argon2-cffi==23.1.0"
-            )
-            logging.warning(warning_msg)
-            # Show user-visible notification
+            logging.error(error_msg)
             try:
                 from utils.notification_manager import NotificationManager
-                notif_mgr = NotificationManager(self.config)
-                notif_mgr.notify(
-                    title="⚠️ Security Warning: Weak Password Hashing",
-                    message="argon2-cffi not installed. Using weak PBKDF2 fallback. Install argon2-cffi for security."
+                NotificationManager(self.config).notify(
+                    title="⚠️ SkyClip: cannot derive encryption key",
+                    message="argon2-cffi is not installed. Install it, or switch algorithm to pbkdf2.",
                 )
-            except Exception as e:
-                logging.error(f"Failed to show security notification: {e}")
-            return self._pbkdf2_hash(password)
+            except Exception as notify_error:
+                logging.error(f"Failed to show security notification: {notify_error}")
+            raise RuntimeError(error_msg) from e
+
+        return hash_secret_raw(
+            password.encode(),
+            salt,
+            time_cost=3,
+            memory_cost=65540,
+            parallelism=4,
+            hash_len=32,
+            type=Type.ID
+        )
 
     def _pbkdf2_hash(self, password: str) -> bytes:
         """Legacy PBKDF2-HMAC-SHA256 (exact original salt formula for backward compatibility)"""

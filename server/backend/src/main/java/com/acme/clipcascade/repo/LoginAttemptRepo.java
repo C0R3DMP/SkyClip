@@ -53,6 +53,11 @@ public interface LoginAttemptRepo extends JpaRepository<LoginAttempt, Long> {
 
     @Transactional
     @Modifying
+    @Query("DELETE FROM LoginAttempt la WHERE la.username = :username")
+    int deleteByUsername(@Param("username") String username);
+
+    @Transactional
+    @Modifying
     @Query("DELETE FROM LoginAttempt la WHERE la.ipAddress = :ipAddress")
     int deleteByIpAddress(@Param("ipAddress") String ipAddress);
 }

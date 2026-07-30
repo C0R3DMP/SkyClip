@@ -146,12 +146,34 @@ module.exports = async (inputData = null) => {
         };
 
         // fragment string into chunks
+        //
+        // A raw bytes.slice(i, i+fragmentSize) cut can land in the middle of
+        // a multi-byte UTF-8 character (Arabic, emoji, CJK, accented Latin,
+        // ...). TextDecoder.decode() then replaces the orphaned bytes on
+        // both sides of the cut with U+FFFD ("�"), visibly corrupting
+        // the clipboard text with garbage characters. This mirrors a bug
+        // found and fixed in the desktop client's P2PManager.fragment_string
+        // (Python) — same root cause, same fix: back each fragment boundary
+        // off to the last complete character instead of cutting mid-sequence.
         const fragmentString = async (str, fragmentSize) => {
           const bytes = textEncoder.encode(str); // convert to UTF-8 bytes
+          const n = bytes.length;
           const fragments = [];
-          for (let i = 0; i < bytes.length; i += fragmentSize) {
-            const chunk = bytes.slice(i, i + fragmentSize);
+          let start = 0;
+          while (start < n) {
+            let end = Math.min(start + fragmentSize, n);
+            // UTF-8 continuation bytes are 0b10xxxxxx. If the byte right
+            // after the cut is a continuation byte, the cut split a
+            // multi-byte character — back off until it doesn't. Floored at
+            // start+1 so a pathologically small fragmentSize (never happens
+            // with the real FRAGMENT_SIZE=15360) can't spin forever backing
+            // off to `start`.
+            while (end > start + 1 && end < n && (bytes[end] & 0xc0) === 0x80) {
+              end -= 1;
+            }
+            const chunk = bytes.slice(start, end);
             fragments.push(textDecoder.decode(chunk));
+            start = end;
           }
           return fragments;
         };
@@ -527,7 +549,14 @@ module.exports = async (inputData = null) => {
                       clipContent,
                     );
                   } else if (type_ === 'files') {
-                    temp = {};
+                    // Must be declared: this module is an ES module, which is
+                    // always strict mode, and an undeclared bare assignment
+                    // throws ReferenceError there instead of silently
+                    // creating a global — this used to crash every outbound
+                    // "files" share in P2S mode (caught by the caller's
+                    // try/catch, so it surfaced only as a status-bar error
+                    // and the files were never actually sent).
+                    const temp = {};
                     const file_paths = clipContent
                       .split(',')
                       .filter(item => item.trim() !== '');
@@ -872,7 +901,11 @@ module.exports = async (inputData = null) => {
                     clipContent,
                   );
                 } else if (type_ === 'files') {
-                  temp = {};
+                  // Same fix as the P2S path above: undeclared assignment
+                  // throws ReferenceError in this ES module's strict-mode
+                  // context, crashing every outbound "files" share in P2P
+                  // mode too.
+                  const temp = {};
                   const file_paths = clipContent
                     .split(',')
                     .filter(item => item.trim() !== '');
@@ -1027,7 +1060,16 @@ module.exports = async (inputData = null) => {
                 return;
               }
 
-              await clearFiles((expensiveCall = true));
+              // `(expensiveCall = true)` was never keyword-argument syntax —
+              // JS has none — it's an assignment expression to a variable
+              // that doesn't exist in this scope (`expensiveCall` is only a
+              // parameter name inside clearFiles' own definition). In this
+              // ES module (always strict mode) that throws ReferenceError
+              // before clearFiles ever runs, and the throw was swallowed by
+              // this function's own try/catch below — every single inbound
+              // P2P clipboard message was silently dropped before any of it
+              // was processed.
+              await clearFiles(true);
               await resetSendingFragmentId();
 
               let cb = String(message.payload);

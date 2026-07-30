@@ -1,17 +1,37 @@
 import json
 import logging
 import requests
-import ctypes
 from core.constants import *
 from core.config import Config
 from bs4 import BeautifulSoup
 from utils.ssl_helper import requests_verify_arg
 
 
-def _secure_clear(data: bytes) -> None:
-    """Overwrite bytes in memory before deletion (prevent memory dump recovery)."""
-    if data:
-        ctypes.memset(id(data), 0, len(data))
+def _secure_clear(buf) -> None:
+    """
+    Zero a mutable secret buffer in place.
+
+    Only `bytearray` (or another mutable buffer) can actually be wiped. An
+    immutable `bytes` object cannot be: CPython may intern or share it, and
+    writing to its storage is undefined behaviour. A previous version of this
+    helper did `ctypes.memset(id(data), 0, len(data))`, which does not point at
+    the payload at all — `id()` is the address of the PyObject header, so that
+    call overwrote the refcount and type pointer and reliably segfaulted the
+    interpreter the next time the object was touched.
+
+    Callers that need wipeable secrets must hold them in a `bytearray`.
+    """
+    if not buf:
+        return
+    if isinstance(buf, bytearray):
+        for i in range(len(buf)):
+            buf[i] = 0
+        return
+    logging.debug(
+        "_secure_clear: %s is immutable and cannot be wiped; "
+        "hold wipeable secrets in a bytearray",
+        type(buf).__name__,
+    )
 
 
 class RequestManager:
@@ -133,11 +153,11 @@ class RequestManager:
 
     def get_metadata(self) -> dict:
         try:
+            # METADATA_URL points at a third-party host (raw.githubusercontent.com),
+            # NOT at the user's SkyClip server. Never attach the session cookie
+            # here — doing so hands the JSESSIONID to an unrelated origin.
             response = RequestManager.get(
                 url=METADATA_URL,
-                headers={
-                    "Cookie": RequestManager.format_cookie(self.config.data["cookie"])
-                },
                 verify=True,
             )
             if response.status_code == 200:
@@ -192,8 +212,11 @@ class RequestManager:
         try:
             from utils.ecdh_key_exchange import ECDHKeyExchange
 
-            # Step 1: Generate ephemeral keypair
-            client_private_pem, client_public_pem = ECDHKeyExchange.generate_keypair()
+            # Step 1: Generate ephemeral keypair.
+            # Hold the private key in a bytearray so it can actually be wiped.
+            client_private_pem_raw, client_public_pem = ECDHKeyExchange.generate_keypair()
+            client_private_pem = bytearray(client_private_pem_raw)
+            del client_private_pem_raw
             logging.info("ECDH: Generated client keypair")
 
             # Step 2: Send client public key to server, receive server public key
@@ -215,13 +238,15 @@ class RequestManager:
             logging.info("ECDH: Received server public key")
 
             # Step 3: Perform key agreement and derive session key
-            session_key = ECDHKeyExchange.perform_key_exchange(
-                client_private_pem, server_public_pem
-            )
-            logging.info("ECDH: Session key derived")
+            try:
+                session_key = ECDHKeyExchange.perform_key_exchange(
+                    bytes(client_private_pem), server_public_pem
+                )
+                logging.info("ECDH: Session key derived")
+            finally:
+                # Step 4: Wipe the ephemeral private key even if step 3 failed
+                _secure_clear(client_private_pem)
 
-            # Step 4: Secure memory clearing for ephemeral private key
-            _secure_clear(client_private_pem)
             del client_private_pem, client_public_pem
 
             return session_key
